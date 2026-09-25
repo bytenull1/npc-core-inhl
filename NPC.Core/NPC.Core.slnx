@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NPC.Core.csproj" />
+  <Project Path="../samples/WanderingNpc/WanderingNpc.csproj" />
+</Solution>

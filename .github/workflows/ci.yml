@@ -1,0 +1,32 @@
+name: checks
+
+# The library itself is not built here: it compiles against the game's own assemblies,
+# which can't be redistributed (NPC.Core/lib/README.md). Build Debug and Release locally.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  docs-and-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+      - name: Doc links and reference constants
+        run: python tools/doccheck.py --verbose
+      - name: Bundled nav graph
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            python tools/bundle_nodegraph.py --check --base "$BASE"
+          else
+            python tools/bundle_nodegraph.py --check
+          fi

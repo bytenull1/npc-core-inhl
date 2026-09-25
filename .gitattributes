@@ -1,0 +1,8 @@
+# Normalization
+*               text=auto eol=lf
+
+# LF + specialized diff
+*.cs            text eol=lf diff=csharp
+
+# Written only by tools/bundle_nodegraph.py; collapsed in GitHub pull requests
+NPC.Core/Resources/nodegraph.bundled.json linguist-generated=true

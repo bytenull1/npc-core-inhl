@@ -1,0 +1,379 @@
+#nullable enable
+abstract NPC.Core.Agents.ReachTask.Defer(float seconds) -> void
+abstract NPC.Core.Agents.ReachTask.Name.get -> string!
+const NPC.Core.Agents.NpcAgent.FollowSameLevelDeltaY = 0.5 -> float
+const NPC.Core.Agents.NpcAgent.ReachNodeArrival = 1.2 -> float
+const NPC.Core.Agents.NpcAgent.ReachStandArrival = 0.3 -> float
+const NPC.Core.Agents.ReachTask.ReachDist = 1.6 -> float
+const NPC.Core.Agents.ReachTask.ReachHeight = 2 -> float
+const NPC.Core.Agents.ReachTask.ReachReplanDelay = 5 -> float
+const NPC.Core.Navigation.NavGraph.ShipOwner = "ship" -> string!
+const NPC.Core.NpcCorePlugin.Guid = "com.bytenull1.npccore" -> string!
+const NPC.Core.NpcCorePlugin.Version = "1.0.0" -> string!
+const NPC.Core.World.SellPens.SellStationClearance = 0.35 -> float
+NPC.Core.Agents.INpcBrain
+NPC.Core.Agents.INpcBrain.Activity.get -> NPC.Core.Agents.NpcActivity
+NPC.Core.Agents.INpcBrain.ActivityName.get -> string!
+NPC.Core.Agents.INpcBrain.Constrain(UnityEngine.Vector3 desired, ref bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.INpcBrain.Holds(UnityEngine.Transform! t) -> bool
+NPC.Core.Agents.INpcBrain.OnDied() -> void
+NPC.Core.Agents.INpcBrain.OnInterrupted(string! why) -> void
+NPC.Core.Agents.INpcBrain.OnShipRebuilt() -> bool
+NPC.Core.Agents.INpcBrain.OnWalkAbandoned(string! why) -> void
+NPC.Core.Agents.INpcBrain.OverrideMovement(Space.Player! player, out UnityEngine.Vector3 move, out bool wantMove) -> bool
+NPC.Core.Agents.INpcBrain.Sheltered.get -> bool
+NPC.Core.Agents.INpcBrain.SlowPhase(int phase, Space.Player! player) -> void
+NPC.Core.Agents.INpcBrain.Steer(Space.Player! player, out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.INpcBrain.TryIdleFacing(Space.Player! player) -> void
+NPC.Core.Agents.NpcActivity
+NPC.Core.Agents.NpcActivity.NpcActivity() -> void
+NPC.Core.Agents.NpcActivity.NpcActivity(NPC.Core.Agents.NpcRecovery recovery, bool idleWatch, bool spaceOut, bool leavesDoorways) -> void
+NPC.Core.Agents.NpcAgent
+NPC.Core.Agents.NpcAgent.AdvancePlan() -> void
+NPC.Core.Agents.NpcAgent.WaypointOverdue(out float budget) -> bool
+NPC.Core.Agents.NpcAgent.Asleep.get -> bool
+NPC.Core.Agents.NpcAgent.Asleep.set -> void
+NPC.Core.Agents.NpcAgent.BodyBlocked(UnityEngine.Vector3 dir, float distance) -> bool
+NPC.Core.Agents.NpcAgent.CancelStepOff() -> void
+NPC.Core.Agents.NpcAgent.ClearMoveTarget() -> void
+NPC.Core.Agents.NpcAgent.CommitPlan(NPC.Core.Navigation.NavPath plan, bool fresh) -> void
+NPC.Core.Agents.NpcAgent.Controller.get -> UnityEngine.CharacterController?
+NPC.Core.Agents.NpcAgent.CurrentOwner.get -> string?
+NPC.Core.Agents.NpcAgent.DescribeSurroundings() -> string!
+NPC.Core.Agents.NpcAgent.Die(UnityEngine.Vector3 impulse) -> void
+NPC.Core.Agents.NpcAgent.DropPlan() -> void
+NPC.Core.Agents.NpcAgent.EnsureDebugVisuals(bool enableDebugVisuals) -> void
+NPC.Core.Agents.NpcAgent.FacePlayer(Space.Player! player) -> void
+NPC.Core.Agents.NpcAgent.FacePoint(UnityEngine.Vector3 point) -> void
+NPC.Core.Agents.NpcAgent.FeltTemperature(Environment! env) -> int
+NPC.Core.Agents.NpcAgent.FloorUnderNpc() -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.FloorUnderPlayer(UnityEngine.Transform! playerTransform) -> float
+NPC.Core.Agents.NpcAgent.GroundPos(float height) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.Hands.get -> NPC.Core.Agents.NpcHands!
+NPC.Core.Agents.NpcAgent.HasLeftStairLeg(out float low, out float high) -> bool
+NPC.Core.Agents.NpcAgent.HasMoveTarget.get -> bool
+NPC.Core.Agents.NpcAgent.HasPlanLeft.get -> bool
+NPC.Core.Agents.NpcAgent.HeadAlongPlan(float speed, out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.InReach(NPC.Core.Agents.ReachTask! task) -> bool
+NPC.Core.Agents.NpcAgent.IsAboardPlayerShip() -> bool
+NPC.Core.Agents.NpcAgent.IsBeingCaught.get -> bool
+NPC.Core.Agents.NpcAgent.IsDead.get -> bool
+NPC.Core.Agents.NpcAgent.IsOwnBody(UnityEngine.Transform! t) -> bool
+NPC.Core.Agents.NpcAgent.LoadRoom(Room? room, string! why, Room? across = null) -> void
+NPC.Core.Agents.NpcAgent.LogSource.get -> BepInEx.Logging.ManualLogSource!
+NPC.Core.Agents.NpcAgent.ModName.get -> string!
+NPC.Core.Agents.NpcAgent.MoveSpeed.get -> float
+NPC.Core.Agents.NpcAgent.MoveSpeed.set -> void
+NPC.Core.Agents.NpcAgent.MoveTarget.get -> UnityEngine.Vector3?
+NPC.Core.Agents.NpcAgent.Name.get -> string!
+NPC.Core.Agents.NpcAgent.NpcAgent() -> void
+NPC.Core.Agents.NpcAgent.Number.get -> int
+NPC.Core.Agents.NpcAgent.OnMyVessel(UnityEngine.Transform! what) -> bool
+NPC.Core.Agents.NpcAgent.OriginToFeet.get -> float
+NPC.Core.Agents.NpcAgent.Plan.get -> NPC.Core.Navigation.NavPath?
+NPC.Core.Agents.NpcAgent.PlanIndex.get -> int
+NPC.Core.Agents.NpcAgent.PlanReach(NPC.Core.Agents.ReachTask! task, out NPC.Core.Navigation.NavPath plan) -> string?
+NPC.Core.Agents.NpcAgent.Pursue(UnityEngine.Vector3 goal, out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.ReleasePlan() -> void
+NPC.Core.Agents.NpcAgent.RideOwner(string! owner, UnityEngine.Transform! anchor) -> void
+NPC.Core.Agents.NpcAgent.SetMoveTarget(UnityEngine.Vector3 target) -> void
+NPC.Core.Agents.NpcAgent.SimpleAdvance(out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.SkippedWaypoint.get -> bool
+NPC.Core.Agents.NpcAgent.SkipWaypoint(string! why) -> void
+NPC.Core.Agents.NpcAgent.SolidParts() -> System.Collections.Generic.IEnumerable<UnityEngine.Collider!>!
+NPC.Core.Agents.NpcAgent.Stay(out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.StepIntoReach(NPC.Core.Agents.ReachTask! task, out UnityEngine.Vector3 move, out bool wantMove) -> bool
+NPC.Core.Agents.NpcAgent.StepOff(UnityEngine.Vector3 target, float seconds) -> void
+NPC.Core.Agents.NpcAgent.StepsOffALedge(UnityEngine.Vector3 dir, float distance) -> bool
+NPC.Core.Agents.NpcAgent.TeleportTo(UnityEngine.Vector3 position, bool stopFalling) -> void
+NPC.Core.Agents.NpcAgent.TrackedRoomName.get -> string!
+NPC.Core.Agents.NpcAgent.TracksRoom(Room! room) -> bool
+NPC.Core.Agents.NpcAgent.TryStepOff(out UnityEngine.Vector3 velocity) -> bool
+NPC.Core.Agents.NpcAgent.Wander(string? owner, System.Predicate<UnityEngine.Vector3>? avoid, out bool wantMove) -> UnityEngine.Vector3
+NPC.Core.Agents.NpcAgent.WasMoving.get -> bool
+NPC.Core.Agents.NpcAgentSettings
+NPC.Core.Agents.NpcAgentSettings.NpcAgentSettings() -> void
+NPC.Core.Agents.NpcBody
+NPC.Core.Agents.NpcBody.AnimatedModel.get -> UnityEngine.GameObject?
+NPC.Core.Agents.NpcBody.AnimatedModel.init -> void
+NPC.Core.Agents.NpcBody.FootstepEvents.get -> FMODUnity.EventReference[]?
+NPC.Core.Agents.NpcBody.FootstepEvents.init -> void
+NPC.Core.Agents.NpcBody.ItemBlocker.get -> UnityEngine.Collider?
+NPC.Core.Agents.NpcBody.ItemBlocker.init -> void
+NPC.Core.Agents.NpcBody.NpcBody() -> void
+NPC.Core.Agents.NpcBody.Ragdoll.get -> UnityEngine.GameObject?
+NPC.Core.Agents.NpcBody.Ragdoll.init -> void
+NPC.Core.Agents.NpcBody.RagdollBody.get -> UnityEngine.Rigidbody?
+NPC.Core.Agents.NpcBody.RagdollBody.init -> void
+NPC.Core.Agents.NpcHands
+NPC.Core.Agents.NpcHands.DistanceTo(UnityEngine.Vector3 point) -> float
+NPC.Core.Agents.NpcHands.Drop(string! why) -> void
+NPC.Core.Agents.NpcHands.Extents.get -> UnityEngine.Vector3
+NPC.Core.Agents.NpcHands.Forward.get -> float
+NPC.Core.Agents.NpcHands.Item.get -> Grabbable?
+NPC.Core.Agents.NpcHands.NpcHands(UnityEngine.MonoBehaviour! body, UnityEngine.Collider? blocker, System.Func<float, UnityEngine.Vector3>! groundPos, System.Func<Room?>! room) -> void
+NPC.Core.Agents.NpcHands.PickUp(Grabbable! item) -> bool
+NPC.Core.Agents.NpcHands.Point.get -> UnityEngine.Vector3
+NPC.Core.Agents.NpcHands.PutDown(UnityEngine.Vector3 at, UnityEngine.Vector3 velocity) -> void
+NPC.Core.Agents.NpcHands.ReachTo(UnityEngine.Vector3? point, float speed = 0) -> void
+NPC.Core.Agents.NpcHands.Release() -> void
+NPC.Core.Agents.NpcHands.Turn(UnityEngine.Quaternion worldRotation) -> void
+NPC.Core.Agents.NpcIdentity
+NPC.Core.Agents.NpcIdentity.<Clone>$() -> NPC.Core.Agents.NpcIdentity!
+NPC.Core.Agents.NpcIdentity.Deconstruct(out string! ModName, out string! Name, out int Number) -> void
+NPC.Core.Agents.NpcIdentity.Equals(NPC.Core.Agents.NpcIdentity? other) -> bool
+NPC.Core.Agents.NpcIdentity.ModName.get -> string!
+NPC.Core.Agents.NpcIdentity.ModName.init -> void
+NPC.Core.Agents.NpcIdentity.Name.get -> string!
+NPC.Core.Agents.NpcIdentity.Name.init -> void
+NPC.Core.Agents.NpcIdentity.NpcIdentity(string! ModName, string! Name, int Number) -> void
+NPC.Core.Agents.NpcIdentity.Number.get -> int
+NPC.Core.Agents.NpcIdentity.Number.init -> void
+NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.NpcRecovery.DropPlanAndPause = 2 -> NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.NpcRecovery.EndWalk = 3 -> NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.NpcRecovery.None = 0 -> NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.NpcRecovery.Pursuit = 4 -> NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.NpcRecovery.SkipWaypoint = 1 -> NPC.Core.Agents.NpcRecovery
+NPC.Core.Agents.ReachTask
+NPC.Core.Agents.ReachTask.Node -> UnityEngine.Vector3
+NPC.Core.Agents.ReachTask.ReachTask(UnityEngine.Vector3 targetPoint, UnityEngine.Transform! own) -> void
+NPC.Core.Agents.ReachTask.StandPoint -> UnityEngine.Vector3
+NPC.Core.INpc
+NPC.Core.INpc.Controller.get -> UnityEngine.CharacterController?
+NPC.Core.INpc.Holds(UnityEngine.Transform! t) -> bool
+NPC.Core.INpc.IsActive.get -> bool
+NPC.Core.INpc.IsDead.get -> bool
+NPC.Core.INpc.IsOwnBody(UnityEngine.Transform! t) -> bool
+NPC.Core.INpc.LogSource.get -> BepInEx.Logging.ManualLogSource!
+NPC.Core.INpc.ModName.get -> string!
+NPC.Core.INpc.Name.get -> string!
+NPC.Core.INpc.SolidParts() -> System.Collections.Generic.IEnumerable<UnityEngine.Collider!>!
+NPC.Core.INpc.TracksRoom(Room! room) -> bool
+NPC.Core.INpc.Transform.get -> UnityEngine.Transform!
+NPC.Core.Interaction.INpcConversation
+NPC.Core.Interaction.INpcConversation.Answer(string! text) -> string!
+NPC.Core.Interaction.INpcConversation.CanTalk.get -> bool
+NPC.Core.Interaction.INpcConversation.Commands.get -> System.Collections.Generic.IReadOnlyList<string!>!
+NPC.Core.Interaction.INpcConversation.Greeting.get -> string!
+NPC.Core.Interaction.INpcConversation.Npc.get -> NPC.Core.INpc!
+NPC.Core.Interaction.INpcConversation.SetOpen(bool open) -> void
+NPC.Core.Interaction.INpcConversation.Title.get -> string!
+NPC.Core.Interaction.NpcInteraction
+NPC.Core.Navigation.NavGraph
+NPC.Core.Navigation.NavPath
+NPC.Core.Navigation.NavPath.Count.get -> int
+NPC.Core.Navigation.NavPath.Deconstruct(out System.Collections.Generic.IReadOnlyList<UnityEngine.Vector3>! Waypoints, out System.Collections.Generic.IReadOnlyList<bool>! WaypointIsForced, out System.Collections.Generic.IReadOnlyList<float>! WaypointFloorY) -> void
+NPC.Core.Navigation.NavPath.Equals(NPC.Core.Navigation.NavPath other) -> bool
+NPC.Core.Navigation.NavPath.FloorY(int i) -> float
+NPC.Core.Navigation.NavPath.IsForced(int i) -> bool
+NPC.Core.Navigation.NavPath.NavPath() -> void
+NPC.Core.Navigation.NavPath.NavPath(System.Collections.Generic.IReadOnlyList<UnityEngine.Vector3>! Waypoints, System.Collections.Generic.IReadOnlyList<bool>! WaypointIsForced, System.Collections.Generic.IReadOnlyList<float>! WaypointFloorY) -> void
+NPC.Core.Navigation.NavPath.this[int i].get -> UnityEngine.Vector3
+NPC.Core.Navigation.NavPath.WaypointFloorY.get -> System.Collections.Generic.IReadOnlyList<float>!
+NPC.Core.Navigation.NavPath.WaypointFloorY.init -> void
+NPC.Core.Navigation.NavPath.WaypointIsForced.get -> System.Collections.Generic.IReadOnlyList<bool>!
+NPC.Core.Navigation.NavPath.WaypointIsForced.init -> void
+NPC.Core.Navigation.NavPath.Waypoints.get -> System.Collections.Generic.IReadOnlyList<UnityEngine.Vector3>!
+NPC.Core.Navigation.NavPath.Waypoints.init -> void
+NPC.Core.Navigation.NavProbe
+NPC.Core.Navigation.NodeType
+NPC.Core.Navigation.NodeType.Ground = 0 -> NPC.Core.Navigation.NodeType
+NPC.Core.Navigation.NodeType.Stair = 1 -> NPC.Core.Navigation.NodeType
+NPC.Core.Navigation.StationRooms
+NPC.Core.Navigation.StationRooms.Entry
+NPC.Core.Navigation.StationRooms.Entry.<Clone>$() -> NPC.Core.Navigation.StationRooms.Entry!
+NPC.Core.Navigation.StationRooms.Entry.Deconstruct(out string! Name, out string![]! Keys, out int[]! Nodes) -> void
+NPC.Core.Navigation.StationRooms.Entry.Entry(string! Name, string![]! Keys, int[]! Nodes) -> void
+NPC.Core.Navigation.StationRooms.Entry.Equals(NPC.Core.Navigation.StationRooms.Entry? other) -> bool
+NPC.Core.Navigation.StationRooms.Entry.Keys.get -> string![]!
+NPC.Core.Navigation.StationRooms.Entry.Keys.init -> void
+NPC.Core.Navigation.StationRooms.Entry.Name.get -> string!
+NPC.Core.Navigation.StationRooms.Entry.Name.init -> void
+NPC.Core.Navigation.StationRooms.Entry.Nodes.get -> int[]!
+NPC.Core.Navigation.StationRooms.Entry.Nodes.init -> void
+NPC.Core.NpcConsole
+NPC.Core.NpcCorePlugin
+NPC.Core.NpcCorePlugin.NpcCorePlugin() -> void
+NPC.Core.NpcEvents
+NPC.Core.NpcLog
+NPC.Core.NpcRegistry
+NPC.Core.NpcRegistry.ActingScope
+NPC.Core.NpcRegistry.ActingScope.ActingScope() -> void
+NPC.Core.NpcRegistry.ActingScope.ActingScope(NPC.Core.INpc? previous) -> void
+NPC.Core.NpcRegistry.ActingScope.Dispose() -> void
+NPC.Core.Saves.NpcSaves
+NPC.Core.SceneScan
+NPC.Core.World.FloorOwnership
+NPC.Core.World.FloorOwnership.Elsewhere = 2 -> NPC.Core.World.FloorOwnership
+NPC.Core.World.FloorOwnership.PlayerShip = 1 -> NPC.Core.World.FloorOwnership
+NPC.Core.World.FloorOwnership.Unknown = 0 -> NPC.Core.World.FloorOwnership
+NPC.Core.World.INpcDoorUser
+NPC.Core.World.INpcDoorUser.OnCloseFailed(Gate! gate) -> void
+NPC.Core.World.INpcDoorUser.OnDoorClosedAway(EntryDetector! doorway) -> void
+NPC.Core.World.INpcHider
+NPC.Core.World.INpcHider.Occupies(HidingSpot! spot) -> bool
+NPC.Core.World.INpcLifeform
+NPC.Core.World.INpcLifeform.IsAboardPlayerShip() -> bool
+NPC.Core.World.INpcLifeform.ShowsOnLifecare.get -> bool
+NPC.Core.World.INpcLifeform.TrackedRoomName.get -> string!
+NPC.Core.World.IRoomKeeper
+NPC.Core.World.IRoomKeeper.ReasonToKeep(Room! room) -> string?
+NPC.Core.World.NpcCorpse
+NPC.Core.World.NpcCorpse.Init(NPC.Core.INpc! npc, UnityEngine.Rigidbody? ragdollBody) -> void
+NPC.Core.World.NpcCorpse.NpcCorpse() -> void
+NPC.Core.World.NpcDoors
+NPC.Core.World.NpcHiding
+NPC.Core.World.NpcMonster
+NPC.Core.World.NpcPlayer
+NPC.Core.World.NpcRooms
+NPC.Core.World.NpcVessels
+NPC.Core.World.SellPens
+override NPC.Core.Agents.NpcIdentity.Equals(object? obj) -> bool
+override NPC.Core.Agents.NpcIdentity.GetHashCode() -> int
+override NPC.Core.Agents.NpcIdentity.ToString() -> string!
+override NPC.Core.Navigation.NavPath.GetHashCode() -> int
+override NPC.Core.Navigation.StationRooms.Entry.Equals(object? obj) -> bool
+override NPC.Core.Navigation.StationRooms.Entry.GetHashCode() -> int
+override NPC.Core.Navigation.StationRooms.Entry.ToString() -> string!
+readonly NPC.Core.Agents.NpcActivity.IdleWatch -> bool
+readonly NPC.Core.Agents.NpcActivity.LeavesDoorways -> bool
+readonly NPC.Core.Agents.NpcActivity.Recovery -> NPC.Core.Agents.NpcRecovery
+readonly NPC.Core.Agents.NpcActivity.SpaceOut -> bool
+readonly NPC.Core.Agents.ReachTask.Own -> UnityEngine.Transform!
+readonly NPC.Core.Agents.ReachTask.TargetPoint -> UnityEngine.Vector3
+static NPC.Core.Agents.NpcAgent.Attach(UnityEngine.GameObject! root, NPC.Core.Agents.NpcIdentity! identity, NPC.Core.Agents.NpcBody! body, NPC.Core.Agents.NpcAgentSettings! settings, NPC.Core.Agents.INpcBrain! brain) -> NPC.Core.Agents.NpcAgent!
+static NPC.Core.Agents.NpcAgent.DetourAngles.get -> System.Collections.Generic.IReadOnlyList<float>!
+static NPC.Core.Agents.NpcAgent.FindReachNode(NPC.Core.Agents.ReachTask! task) -> bool
+static NPC.Core.Agents.NpcAgent.IsPlayerInSpace(Space.Player! player) -> bool
+static NPC.Core.Agents.NpcHands.ColliderBounds(UnityEngine.GameObject! root, out UnityEngine.Bounds bounds) -> bool
+static NPC.Core.Agents.NpcIdentity.operator !=(NPC.Core.Agents.NpcIdentity? left, NPC.Core.Agents.NpcIdentity? right) -> bool
+static NPC.Core.Agents.NpcIdentity.operator ==(NPC.Core.Agents.NpcIdentity? left, NPC.Core.Agents.NpcIdentity? right) -> bool
+static NPC.Core.Interaction.NpcInteraction.IsOpen.get -> bool
+static NPC.Core.Interaction.NpcInteraction.Register(NPC.Core.Interaction.INpcConversation! conversation) -> bool
+static NPC.Core.Interaction.NpcInteraction.Unregister(NPC.Core.Interaction.INpcConversation! conversation) -> void
+static NPC.Core.Navigation.NavGraph.CanReachEntry(UnityEngine.Vector3 start, UnityEngine.Vector3 waypoint) -> bool
+static NPC.Core.Navigation.NavGraph.CollectActiveNodes(System.Collections.Generic.List<UnityEngine.Vector3>! into) -> void
+static NPC.Core.Navigation.NavGraph.FindPath(UnityEngine.Vector3 start, UnityEngine.Vector3 end, UnityEngine.Vector3? cameFromPos = null, UnityEngine.Vector3? avoidEntry = null) -> NPC.Core.Navigation.NavPath?
+static NPC.Core.Navigation.NavGraph.GetNodeOwner(int index) -> string?
+static NPC.Core.Navigation.NavGraph.GetNodeType(int index) -> NPC.Core.Navigation.NodeType
+static NPC.Core.Navigation.NavGraph.GetNodeWorld(int index) -> UnityEngine.Vector3
+static NPC.Core.Navigation.NavGraph.IsNodeActive(int index) -> bool
+static NPC.Core.Navigation.NavGraph.LastPathBlockedByDoor.get -> bool
+static NPC.Core.Navigation.NavGraph.NearestActiveNodeOwner(UnityEngine.Vector3 worldPos, float maxDist) -> string?
+static NPC.Core.Navigation.NavGraph.NodeCount.get -> int
+static NPC.Core.Navigation.NavGraph.RandomNode(string? owner = null) -> UnityEngine.Vector3
+static NPC.Core.Navigation.NavGraph.TryVesselOf(UnityEngine.Transform? start, out SpaceShip? ship, out SpaceObject? spaceObject) -> bool
+static NPC.Core.Navigation.NavGraph.WaypointIsOnAReachableDeck(UnityEngine.Vector3 start, UnityEngine.Vector3 waypoint) -> bool
+static NPC.Core.Navigation.NavPath.operator !=(NPC.Core.Navigation.NavPath left, NPC.Core.Navigation.NavPath right) -> bool
+static NPC.Core.Navigation.NavPath.operator ==(NPC.Core.Navigation.NavPath left, NPC.Core.Navigation.NavPath right) -> bool
+static NPC.Core.Navigation.NavProbe.BodyMaskFor(int layer) -> int
+static NPC.Core.Navigation.NavProbe.CanSee(UnityEngine.Vector3 from, UnityEngine.Vector3 to, UnityEngine.Transform? target, out Gate? shutGate) -> bool
+static NPC.Core.Navigation.NavProbe.CollisionMaskFor(int layer) -> int
+static NPC.Core.Navigation.NavProbe.DistanceToSegment(UnityEngine.Vector3 p, UnityEngine.Vector3 a, UnityEngine.Vector3 b) -> float
+static NPC.Core.Navigation.NavProbe.FloorHeight(UnityEngine.Vector3 p) -> float
+static NPC.Core.Navigation.NavProbe.GroundIsContinuous(UnityEngine.Vector3 a, UnityEngine.Vector3 b, float maxStep) -> bool
+static NPC.Core.Navigation.NavProbe.HitIsWalkableGround(UnityEngine.RaycastHit hit, UnityEngine.Vector3 dir, float feetY, float stepOffset, float slopeLimit) -> bool
+static NPC.Core.Navigation.NavProbe.ProbeLayers.get -> int
+static NPC.Core.Navigation.NavProbe.ThinLos(UnityEngine.Vector3 a, UnityEngine.Vector3 b, float maxDeltaY) -> bool
+static NPC.Core.Navigation.NavProbe.TryFloorCollider(UnityEngine.Vector3 p, out UnityEngine.Collider? floorCollider) -> bool
+static NPC.Core.Navigation.NavProbe.TryFloorHeight(UnityEngine.Vector3 p, out float floorY) -> bool
+static NPC.Core.Navigation.NavProbe.WalkLos(UnityEngine.Vector3 a, UnityEngine.Vector3 b, float maxDeltaY) -> bool
+static NPC.Core.Navigation.StationRooms.Current(out string! station) -> NPC.Core.Navigation.StationRooms.Entry![]!
+static NPC.Core.Navigation.StationRooms.Entry.operator !=(NPC.Core.Navigation.StationRooms.Entry? left, NPC.Core.Navigation.StationRooms.Entry? right) -> bool
+static NPC.Core.Navigation.StationRooms.Entry.operator ==(NPC.Core.Navigation.StationRooms.Entry? left, NPC.Core.Navigation.StationRooms.Entry? right) -> bool
+static NPC.Core.Navigation.StationRooms.Join(System.Collections.Generic.IEnumerable<NPC.Core.Navigation.StationRooms.Entry!>! entries) -> string!
+static NPC.Core.Navigation.StationRooms.TryResolve(string! lower, out NPC.Core.Navigation.StationRooms.Entry? room, out System.Collections.Generic.List<NPC.Core.Navigation.StationRooms.Entry!>? several, System.Collections.Generic.IReadOnlyCollection<string!>? moreFiller = null) -> bool
+static NPC.Core.NpcConsole.Alias(string! owner, string! alias, string! target) -> bool
+static NPC.Core.NpcConsole.IsOpen.get -> bool
+static NPC.Core.NpcConsole.Print(string! text) -> void
+static NPC.Core.NpcConsole.Register(string! owner, string! name, System.Action<string![]!>! run) -> bool
+static NPC.Core.NpcEvents.GameStarting -> System.Action<bool>?
+static NPC.Core.NpcEvents.SaveLoaded -> System.Action<string!>?
+static NPC.Core.NpcEvents.Tick -> System.Action?
+static NPC.Core.NpcEvents.WorldReset -> System.Action?
+static NPC.Core.NpcLog.Level.get -> int
+static NPC.Core.NpcLog.Level.set -> void
+static NPC.Core.NpcLog.Log.get -> BepInEx.Logging.ManualLogSource!
+static NPC.Core.NpcRegistry.Acting(NPC.Core.INpc? npc) -> NPC.Core.NpcRegistry.ActingScope
+static NPC.Core.NpcRegistry.ActingLog.get -> BepInEx.Logging.ManualLogSource?
+static NPC.Core.NpcRegistry.ActingNpc.get -> NPC.Core.INpc?
+static NPC.Core.NpcRegistry.All.get -> System.Collections.Generic.IReadOnlyList<NPC.Core.INpc!>!
+static NPC.Core.NpcRegistry.AnotherNpcWhere(System.Func<UnityEngine.Vector3, bool>! test, NPC.Core.INpc! me) -> bool
+static NPC.Core.NpcRegistry.IgnoreAllBodies(NPC.Core.INpc! npc) -> int
+static NPC.Core.NpcRegistry.IgnoreBodies(NPC.Core.INpc! a, NPC.Core.INpc! b) -> int
+static NPC.Core.NpcRegistry.IndexOf(NPC.Core.INpc! npc) -> int
+static NPC.Core.NpcRegistry.IsGone(NPC.Core.INpc? npc) -> bool
+static NPC.Core.NpcRegistry.IsNpcBody(UnityEngine.Transform! t) -> bool
+static NPC.Core.NpcRegistry.LogSourceFor(string! modName, string! npcName) -> BepInEx.Logging.ManualLogSource!
+static NPC.Core.NpcRegistry.OtherTrackedIn(Room! room, NPC.Core.INpc! me) -> NPC.Core.INpc?
+static NPC.Core.NpcRegistry.Register(NPC.Core.INpc! npc) -> void
+static NPC.Core.NpcRegistry.Registered -> System.Action<NPC.Core.INpc!>?
+static NPC.Core.NpcRegistry.Snapshot() -> NPC.Core.INpc![]!
+static NPC.Core.NpcRegistry.TakenByAnother(UnityEngine.Transform! what, NPC.Core.INpc! me) -> bool
+static NPC.Core.NpcRegistry.Unregister(NPC.Core.INpc! npc) -> void
+static NPC.Core.NpcRegistry.Unregistered -> System.Action<NPC.Core.INpc!>?
+static NPC.Core.Saves.NpcSaves.PathOf(string! saveName, string! extension) -> string!
+static NPC.Core.Saves.NpcSaves.Read(string! saveName, string! extension) -> string?
+static NPC.Core.Saves.NpcSaves.RegisterSidecar(string! owner, string! extension, System.Func<string!, string?>! write) -> bool
+static NPC.Core.SceneScan.MayRescan(bool mustScan) -> bool
+static NPC.Core.SceneScan.ThisFrame<T>() -> T![]!
+static NPC.Core.World.NpcDoors.AnyKnownDoorMatches() -> bool
+static NPC.Core.World.NpcDoors.BlocksRouting(Gate! gate) -> bool
+static NPC.Core.World.NpcDoors.Detectors.get -> System.Collections.Generic.IReadOnlyList<EntryDetector!>!
+static NPC.Core.World.NpcDoors.DetectorsVersion.get -> int
+static NPC.Core.World.NpcDoors.DoorOf(EntryDetector! detector) -> Gate?
+static NPC.Core.World.NpcDoors.ImpassableCount.get -> int
+static NPC.Core.World.NpcDoors.IsAirlockGate(Gate! gate) -> bool
+static NPC.Core.World.NpcDoors.IsPasswordGate(Gate! gate) -> bool
+static NPC.Core.World.NpcDoors.KnownCodes.get -> System.Collections.Generic.IReadOnlyCollection<int>!
+static NPC.Core.World.NpcDoors.LearnCode(int code) -> bool
+static NPC.Core.World.NpcDoors.MayOpen(Gate! gate) -> bool
+static NPC.Core.World.NpcDoors.NoteClosedBy(Gate! gate, NPC.Core.INpc! by) -> void
+static NPC.Core.World.NpcDoors.Optimizes(EntryDetector! detector) -> bool
+static NPC.Core.World.NpcDoors.PinPanelFor(Gate! gate) -> DoorPinCode?
+static NPC.Core.World.NpcDoors.RoomIsAirlockChamber(Room? room) -> bool
+static NPC.Core.World.NpcDoors.RoomsOf(EntryDetector! detector, out Room? inner, out Room? outer) -> void
+static NPC.Core.World.NpcDoors.TryInnerSide(EntryDetector! detector, UnityEngine.Vector3 pos, out bool inner) -> bool
+static NPC.Core.World.NpcDoors.WasClosedByNpc(Gate! gate, out NPC.Core.INpc? by) -> bool
+static NPC.Core.World.NpcDoors.WhyClosedToPlayer(Gate! gate) -> string?
+static NPC.Core.World.NpcHiding.OccupiedByNpc(HidingSpot! spot) -> bool
+static NPC.Core.World.NpcMonster.BeginCatch(NPC.Core.INpc! npc) -> void
+static NPC.Core.World.NpcMonster.Catching.get -> NPC.Core.INpc?
+static NPC.Core.World.NpcMonster.CatchingAnother(NPC.Core.INpc! me) -> bool
+static NPC.Core.World.NpcMonster.EndCatch(NPC.Core.INpc! npc) -> void
+static NPC.Core.World.NpcMonster.MonsterDisabled.get -> bool
+static NPC.Core.World.NpcMonster.NoTarget.get -> bool
+static NPC.Core.World.NpcMonster.NpcsDisabled.get -> bool
+static NPC.Core.World.NpcMonster.PlayerIgnored.get -> bool
+static NPC.Core.World.NpcPlayer.Controller.get -> UnityEngine.CharacterController?
+static NPC.Core.World.NpcPlayer.FootstepEvents() -> FMODUnity.EventReference[]?
+static NPC.Core.World.NpcPlayer.Pilot.get -> Space.Player?
+static NPC.Core.World.NpcRooms.AddKeeper(NPC.Core.World.IRoomKeeper! keeper) -> void
+static NPC.Core.World.NpcRooms.ReasonToKeep(Room! room) -> string?
+static NPC.Core.World.NpcRooms.RemoveKeeper(NPC.Core.World.IRoomKeeper! keeper) -> void
+static NPC.Core.World.NpcVessels.AnchorForOwner(string? owner) -> UnityEngine.Transform?
+static NPC.Core.World.NpcVessels.FloorOwner(UnityEngine.Vector3 worldPos) -> NPC.Core.World.FloorOwnership
+static NPC.Core.World.NpcVessels.FloorOwner(UnityEngine.Vector3 worldPos, out string? owner, out UnityEngine.Transform? anchor) -> NPC.Core.World.FloorOwnership
+static NPC.Core.World.NpcVessels.InteriorOf(SpaceObject! spaceObject) -> UnityEngine.Transform!
+static NPC.Core.World.NpcVessels.OwnerOfTransform(UnityEngine.Transform! start) -> string?
+static NPC.Core.World.SellPens.HoldsSellStation(Room! room) -> bool
+static NPC.Core.World.SellPens.InAFencedPen(UnityEngine.Vector3 point, SellStation? except, float margin) -> bool
+static readonly NPC.Core.Agents.ReachTask.ReachStandOffs -> float[]!
+virtual NPC.Core.Agents.NpcAgentSettings.BreathesAir.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.CanBeCaught.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.CanOpenDoors.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.CarryableCorpse.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.DebugVisuals.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.KeepOutOfSpace.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.Mortal.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.MoveSpeed.get -> float
+virtual NPC.Core.Agents.NpcAgentSettings.ShowOnLifecare.get -> bool
+virtual NPC.Core.Agents.NpcAgentSettings.SuitTemperatureResistance.get -> int
+virtual NPC.Core.Agents.ReachTask.Reach.get -> float
+virtual NPC.Core.Agents.ReachTask.ReachBelow.get -> float
+virtual NPC.Core.Agents.ReachTask.Recover(string! why) -> bool
+virtual NPC.Core.Agents.ReachTask.StandAllowed(UnityEngine.Vector3 point) -> bool
+virtual NPC.Core.Agents.ReachTask.StandOffs.get -> float[]!
+~override NPC.Core.Navigation.NavPath.Equals(object obj) -> bool
+~override NPC.Core.Navigation.NavPath.ToString() -> string

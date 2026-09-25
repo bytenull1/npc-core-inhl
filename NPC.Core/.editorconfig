@@ -1,0 +1,50 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+# Style hints, IDE-only
+# Brace rule: Roslyn can only hint chains that mix braced and braceless branches.
+csharp_prefer_braces = when_multiline:suggestion
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = false:suggestion
+csharp_style_var_elsewhere = false:suggestion
+# Rider has a "simple types" category the csharp_style keys do not cover; keep all explicit.
+resharper_for_built_in_types = use_explicit_type
+resharper_for_simple_types = use_explicit_type
+resharper_for_other_types = use_explicit_type
+
+# Unused usings, unused/unread private members, unused parameters, missing readonly.
+# Unity messages and serialized fields are exempted by the analyzer package's suppressors.
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0044.severity = warning
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+dotnet_diagnostic.IDE0060.severity = warning
+
+# IDE0066: Convert switch statement to expression
+dotnet_diagnostic.IDE0066.severity = none
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity = none
+
+# Microsoft.Unity.Analyzers. UNT0006/0015/0033 (message signatures) are warnings by default.
+# ?. ?? ??= and `is null` bypass Unity's == null, so a destroyed object reads as alive.
+dotnet_diagnostic.UNT0007.severity = warning
+dotnet_diagnostic.UNT0008.severity = warning
+dotnet_diagnostic.UNT0023.severity = warning
+dotnet_diagnostic.UNT0029.severity = warning
+# `new` on a Component, Destroy(Transform), GetComponent<non-Component>, unstarted coroutine.
+dotnet_diagnostic.UNT0010.severity = warning
+dotnet_diagnostic.UNT0030.severity = warning
+dotnet_diagnostic.UNT0014.severity = warning
+dotnet_diagnostic.UNT0012.severity = warning
+# Physics queries use the pre-allocated NonAlloc overloads.
+dotnet_diagnostic.UNT0028.severity = warning

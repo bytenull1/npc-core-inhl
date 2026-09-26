@@ -90,7 +90,6 @@ never cached ([never-cache-node-world-positions](invariants.md#never-cache-node-
 | `BepInEx/config/com.bytenull1.npccore.cfg` | BepInEx | settings; the first run imports YourBuddy's old graph, editor and debug-level keys |
 | `BepInEx/config/NPC.Core/nodegraph.json` | `NavGraph.Save` (F6, or 20 s after a change) | the player's own nodes and links per owner, and which owners they forked |
 | `BepInEx/config/NPC.Core/nodegraph.bundled.json` | `NavGraph.LoadBundled`, from an embedded resource | the shipped graph; rewritten when `BundleVersion` changes |
-
 | `<game save folder>/SaveFiles/<save>.npccore` | `NpcSaves`, after the game writes that save | the door codes NPCs were told; only while there are any |
 | `<game save folder>/SaveFiles/<save>.<extension>` | `NpcSaves`, from each mod's callback | that mod's own state, such as YourBuddy's `.buddy` |
 

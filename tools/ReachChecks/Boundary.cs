@@ -33,12 +33,19 @@ namespace NPC.Core.Navigation
     public static class NavGraph
     {
         public static Vector3[] Nodes = [];
+        public static int Searches;
+        public static bool LastPathBlockedByDoor;
+        public static readonly HashSet<float> BlockedByDoor = [];
         public static readonly Dictionary<float, Vector3[]?> Paths = [];
         public static void CollectActiveNodes(List<Vector3> nodes) { nodes.Clear(); nodes.AddRange(Nodes); }
         public static NodeType TypeAt(Vector3 point) => NodeType.Ground;
         public static float FloorAt(Vector3 point) => 0;
-        public static NavPath? FindPath(Vector3 from, Vector3 to, bool mayGoOutside) =>
-            Paths.TryGetValue(to.x, out Vector3[]? path) && path != null ? new NavPath(path) : null;
+        public static NavPath? FindPath(Vector3 from, Vector3 to, bool mayGoOutside)
+        {
+            Searches++;
+            LastPathBlockedByDoor = BlockedByDoor.Contains(to.x);
+            return Paths.TryGetValue(to.x, out Vector3[]? path) && path != null ? new NavPath(path) : null;
+        }
     }
     public static class NavProbe
     {

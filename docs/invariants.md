@@ -571,6 +571,8 @@ a recovery: Wander drops the plan, steps back and re-picks, so the NPC paused at
 **Rule.** A Route waypoint abandoned for being unreachable marks the plan. When such a plan runs
 out of waypoints, the route ends as a failure - a warning naming the goal, and an order that is
 reported *not* done. Only a plan walked to its end is an arrival.
+An object-use task also rejects partial routes during planning: its final waypoint must be
+within 0.5 m of the selected approach node, matching the graph's goal-append tolerance.
 
 **Why.** Stuck and no-progress recovery skip the waypoint underway. Skipping the last one falls
 straight into YourBuddy's `FinishRoute`, which said "the goto order is done" and cleared the order, so a

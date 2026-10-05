@@ -261,7 +261,9 @@ the stand points tried in front of it, how far and how high it is used from, whe
 
 1. `FindReachNode` picks the nearest active node within `ReachNodeRadius` of the target with a clear
    walk (`WalkLos`) to a stand point, from which the target is in sight (`CanSee`).
-2. `PlanReach` plans to that node. The brain walks the plan (YourBuddy: a Route with `SimpleAdvance`).
+2. `PlanReach` chooses the nearest such node with a route that actually ends within 0.5 m of it.
+   Partial approach routes are rejected and another eligible node is tried. The brain walks the
+   plan (YourBuddy: a Route with `SimpleAdvance`).
 3. `StepIntoReach` walks straight on to the stand point, then the target, until `InReach`. A plan
    that ran out more than `ReachNodeArrival` short of the node is planned again, `ReachMaxReplans`
    times. Within `ReachStandArrival` of the stand point the last step is at the target. After

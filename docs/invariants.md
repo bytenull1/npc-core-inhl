@@ -298,7 +298,12 @@ colliders, or frame trim in a fully open doorway.
 sample and look from 1 m. As a sight test they see through closed doors. Gates are tested
 explicitly because an airlock pair stands closer together than the carve-out is deep.
 
-**Enforced in.** `NavProbe.CanSee`, from YourBuddy's `BuddyBehaviour.MonsterInSight`.
+A gate's box is its child colliders, else its own; the fixed 1.7 m opening is only for a gate
+with none. An airlock's ceiling hatch is a single collider on the gate itself. Boxed as an opening,
+it filled the chamber, so nothing inside the airlock could be seen while the hatch was shut.
+
+**Enforced in.** `NavProbe.CanSee`, `NavProbe.LocalBoundsOf`, from YourBuddy's
+`BuddyBehaviour.MonsterInSight`.
 
 
 ## Pathfinding

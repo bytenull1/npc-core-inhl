@@ -545,19 +545,36 @@ namespace NPC.Core.Navigation
         }
 
         /// <summary>
-        /// The gate's strict children, measured once into its own local space so the
-        /// box stays valid while the world moves around the ship.
+        /// The gate's strict children, else its own colliders (an airlock's ceiling hatch is one box),
+        /// measured once into its own local space so the box stays valid while the world moves around
+        /// the ship. docs/invariants.md#sight-stops-at-a-shut-door
         /// </summary>
         private static Bounds LocalBoundsOf(Gate gate, Transform t)
         {
             int key = gate.GetInstanceID();
             if (GateLocalBounds.TryGetValue(key, out Bounds cached)) return cached;
 
+            Collider[] colliders = gate.GetComponentsInChildren<Collider>(false);
+            bool any = EncapsulateColliders(colliders, t, ownToo: false, out Bounds local) ||
+                       EncapsulateColliders(colliders, t, ownToo: true, out local);
+            // No collider at all: fall back to the fixed opening, so an unmeasurable
+            // gate still blocks its own doorway rather than nothing at all.
+            if (!any) local = new Bounds(Vector3.zero, new Vector3(GateOpeningRadius * 2f, 2f, GateOpeningRadius * 2f));
+
+            GateLocalBounds[key] = local;
+            return local;
+        }
+
+        /// <summary>
+        /// The box, in `t`'s space, around `colliders`; the ones on `t` itself only when `ownToo`.
+        /// </summary>
+        private static bool EncapsulateColliders(Collider[] colliders, Transform t, bool ownToo, out Bounds local)
+        {
             bool any = false;
-            Bounds local = new(Vector3.zero, Vector3.zero);
-            foreach (Collider c in gate.GetComponentsInChildren<Collider>(false))
+            local = new Bounds(Vector3.zero, Vector3.zero);
+            foreach (Collider c in colliders)
             {
-                if (c.transform == t) continue;
+                if (!ownToo && c.transform == t) continue;
 
                 Bounds w = c.bounds;
                 for (int corner = 0; corner < 8; corner++)
@@ -570,12 +587,7 @@ namespace NPC.Core.Navigation
                     else { local = new Bounds(lp, Vector3.zero); any = true; }
                 }
             }
-            // No child colliders: fall back to the fixed opening, so an unmeasurable
-            // gate still blocks its own doorway rather than nothing at all.
-            if (!any) local = new Bounds(Vector3.zero, new Vector3(GateOpeningRadius * 2f, 2f, GateOpeningRadius * 2f));
-
-            GateLocalBounds[key] = local;
-            return local;
+            return any;
         }
 
         /// <summary>

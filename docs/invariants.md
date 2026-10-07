@@ -501,6 +501,9 @@ this runs on every relaxed edge.
 
 **Rule.** When `FindPath` fails *and* `LastPathBlockedByDoor` is set, the NPC holds position and
 logs why (throttled). No random step-off, and Wander does not count it as a failure.
+Wander tries its remaining candidate budget before waiting. Door-blocked destinations are skipped
+for 30 seconds from the same approach (within 2 m); other destinations stay eligible.
+A batch containing only blocked or deferred destinations waits two seconds before looking again.
 
 **Why.** The step-off is for an NPC wedged on furniture. For a door it cannot open it only turns
 "waiting for you" into milling about.
@@ -662,7 +665,8 @@ and `UpdateBaseFloor` adopts a real raised deck after ~4 s.
 ### progress-is-measured-to-one-target
 
 **Rule.** The no-progress watch compares distances to the same target only. A 0.6 s window in which
-the NPC passed a waypoint neither counts as progress nor as a failure.
+the movement target changed neither counts as progress nor as a failure, including replans
+and following a moving player as well as waypoint advancement.
 
 **Why.** The next waypoint is farther than the one just reached, so that window always "lost"
 distance. Where waypoints are 1.6-3.3 m apart (the docking corridor, stairs) two such windows ran

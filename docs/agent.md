@@ -288,7 +288,9 @@ Not parented, it never disappears with a deactivated NPC, and its save record ne
 
 **Reaching out.** `ReachTo(point)` moves the held item to a point with its colliders **on**, so it
 touches triggers like the player's held item does. `null` brings it back and turns them off; a speed
-lowers it slowly instead. `Turn` sets its facing.
+lowers it slowly instead. `Turn` sets facing relative to the carrier; `TurnWorld` keeps a fixed
+world orientation when a placement plan depends on measured bounds. Picking up, releasing,
+or calling `Turn` clears that fixed orientation.
 
 **Putting down** (`PutDown`, `Drop`, `Release`) restores colliders, `restrictGrab`, interpolation, wakes
 physics and calls `SavePosition`. Item and item blocker ignore each other for `PutDownIgnoreSeconds`.

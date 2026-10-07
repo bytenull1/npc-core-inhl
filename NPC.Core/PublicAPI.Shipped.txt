@@ -9,7 +9,7 @@ const NPC.Core.Agents.ReachTask.ReachHeight = 2 -> float
 const NPC.Core.Agents.ReachTask.ReachReplanDelay = 5 -> float
 const NPC.Core.Navigation.NavGraph.ShipOwner = "ship" -> string!
 const NPC.Core.NpcCorePlugin.Guid = "com.bytenull1.npccore" -> string!
-const NPC.Core.NpcCorePlugin.Version = "1.0.2" -> string!
+const NPC.Core.NpcCorePlugin.Version = "1.0.3" -> string!
 const NPC.Core.World.SellPens.SellStationClearance = 0.35 -> float
 NPC.Core.Agents.INpcBrain
 NPC.Core.Agents.INpcBrain.Activity.get -> NPC.Core.Agents.NpcActivity

@@ -35,6 +35,7 @@ namespace NPC.Core.Agents
 
         private readonly List<Collider> colliders = [];
         private Quaternion rotation = Quaternion.identity;
+        private Quaternion? fixedWorldRotation;
         /// <summary>
         /// The item's collider centre, in its own space: that is what sits on the hold point.
         /// </summary>
@@ -126,6 +127,7 @@ namespace NPC.Core.Agents
                 colliders.Add(collider);
             }
             rotation = Quaternion.Inverse(Body.rotation) * item.transform.rotation;
+            fixedWorldRotation = null;
             reachTo = null;
             reachSpeed = 0f;
             Item = item;
@@ -192,7 +194,14 @@ namespace NPC.Core.Agents
         /// <summary>
         /// Turns the item to face `worldRotation`, and keeps it that way relative to the body.
         /// </summary>
-        public void Turn(Quaternion worldRotation) => rotation = Quaternion.Inverse(Body.rotation) * worldRotation;
+        public void Turn(Quaternion worldRotation)
+        {
+            fixedWorldRotation = null;
+            rotation = Quaternion.Inverse(Body.rotation) * worldRotation;
+        }
+
+        /// <summary>Keeps a measured item's world orientation while the carrier turns. docs/agent.md#7-hands</summary>
+        public void TurnWorld(Quaternion worldRotation) => fixedWorldRotation = worldRotation;
 
         public float DistanceTo(Vector3 point) =>
             Item == null ? float.PositiveInfinity : Vector3.Distance(Item.transform.TransformPoint(centre), point);
@@ -212,7 +221,7 @@ namespace NPC.Core.Agents
                 return;
             }
             Transform item = Item.transform;
-            item.rotation = Body.rotation * rotation;
+            item.rotation = fixedWorldRotation ?? Body.rotation * rotation;
             Vector3 current = item.TransformPoint(centre);
             Vector3 target = reachTo ?? Point;
             // Carried along at walking pace, lifted and reached out at hand pace.
@@ -254,6 +263,7 @@ namespace NPC.Core.Agents
         {
             Grabbable? item = Item;
             Item = null;
+            fixedWorldRotation = null;
             reachTo = null;
             reachSpeed = 0f;
             if (item == null) return;

@@ -226,6 +226,7 @@ where to go. Register the agent, not the brain. The whole contract: [agent.md](a
 | `NpcAgent.PlanReach`, `StepIntoReach`, `InReach`, `FindReachNode`, `ReachTask` | walking up to something to use it ([agent.md §6](agent.md#6-walking-into-reach)) |
 | `NpcAgent.Asleep`, `CurrentOwner`, `RideOwner`, `DescribeSurroundings`, and the rest | [agent.md §5](agent.md#5-walks) lists every member a brain uses |
 | `NpcAgent.Hands` (`NpcHands`) | one held item ([agent.md §7](agent.md#7-hands)) |
+| `NpcHands.TurnWorld(Quaternion)` | keep the carried item in a fixed world orientation ([agent.md §7](agent.md#7-hands)); `Turn` keeps its carrier-relative behaviour |
 | `NpcAgent.CloseBehind(gate)` | an open door to shut once it has walked through ([doors.md §7](doors.md#7-closing-behind-itself)) |
 | `NpcAgent.LeaveDoors()` | the body leaves the world: the doors it owes, and the one it stands in, close without it walking through ([doors.md §7](doors.md#7-closing-behind-itself)) |
 | `NpcAgent.KnowsEveryCode` | opens every pin-code door without the code while set ([doors.md](doors.md#password-doors)) |

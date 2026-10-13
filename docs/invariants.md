@@ -723,7 +723,8 @@ group, never in one `PatchAll`.
 **Why.** A game update renaming a member would otherwise fail silently deep in behaviour code, and
 one missing patch target would take every other patch down with it.
 
-**Enforced in.** `GameInternals`, `NpcCorePlugin.ApplyPatches (and each mod's own)`.
+**Enforced in.** `GameInternals`, `NpcCorePlugin.ApplyPatches (and each mod's own)`. Checked offline against
+a game install by [tools/GameCompat](../tools/GameCompat/README.md).
 
 ---
 

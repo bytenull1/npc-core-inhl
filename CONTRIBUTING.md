@@ -41,13 +41,17 @@ The decompile and exports are the game developer's work and must never be commit
 - **Keep changes small** and focused on one problem.
 - **Build clean.** Debug and Release must both build; every warning is an error.
 - **Run the checks** CI runs: `python tools/doccheck.py`, `python tools/bundle_nodegraph.py --check` and
-  `dotnet run --project tools/ReachChecks/ReachChecks.csproj -c Release` (reach planning against stubs;
-  when `NpcAgent.Reach.cs` gains a dependency, add it to `tools/ReachChecks/Boundary.cs`).
+  `dotnet test tools/ReachChecks/ReachChecks.csproj -c Release` (reach planning against stubs; when
+  `NpcAgent.Reach.cs` gains a dependency, add it to `tools/ReachChecks/Subject/Boundary.cs`). For mutation
+  testing, run `dotnet tool restore` once, then `dotnet stryker` in `tools/ReachChecks`; the
+  [YourBuddy guide](https://github.com/bytenull1/yourbuddy-inhl/blob/main/CONTRIBUTING.md#check-harnesses) explains the report.
 - **Mind the public API.** Mods compile against it ([docs/api.md](docs/api.md)); a changed signature
   breaks them. The build lists every public member in `NPC.Core/PublicAPI.*.txt`
   ([api.md §9](docs/api.md#9-changing-the-api)). Rebuild YourBuddy against your change before you open
   a pull request.
 - **Test in the game.** For navigation, test stairs and doorways on both the ship and a station.
+- **After a game update**, run [tools/GameCompat](tools/GameCompat/README.md) before playing. It lists every
+  member NPC.Core and YourBuddy use that the new game no longer has.
 - **Follow the code style** in [AGENTS.md §3](AGENTS.md#3-code-conventions), and update the docs that
   own the subject ([AGENTS.md §4](AGENTS.md#4-documentation-rules)).
 

@@ -1,0 +1,8 @@
+{
+  "stryker-config": {
+    "project": "ReachChecks.Subject.csproj",
+    "configuration": "Release",
+    "mutate": ["!**/Boundary.cs"],
+    "reporters": ["progress", "html", "json"]
+  }
+}

@@ -35,4 +35,4 @@ jobs:
         with:
           global-json-file: global.json
       - name: Check harnesses
-        run: dotnet run --project tools/ReachChecks/ReachChecks.csproj -c Release
+        run: dotnet test tools/ReachChecks/ReachChecks.csproj -c Release --logger "console;verbosity=detailed"

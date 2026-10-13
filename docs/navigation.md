@@ -145,9 +145,11 @@ The returned `NavPath` stores, per waypoint, whether the arriving edge is forced
 it (`WaypointFloorY`). Following code reads decks from there instead of re-probing - that is how it
 finds [stair legs](#6a-stair-legs).
 
-**Seeding tests every candidate.** Every active node within `MaxSeedDist` goes through
-`CanReachEntry`; all that pass are start nodes. Testing only the nearest few trapped the NPC when
-its surroundings were blocked. `CanReachEntry` ([one-entry-predicate](invariants.md#one-entry-predicate))
+**Every candidate is eligible.** Every active node within `MaxSeedDist` is an entry candidate;
+all that pass `CanReachEntry` are start nodes. Testing only the nearest few trapped the NPC when
+its surroundings were blocked. A candidate is probed when A\* would expand it next (its seed cost
+plus distance to the goal is the lowest left), so one that cannot beat a finish already found is
+never probed. Without a finish, every candidate is probed. `CanReachEntry` ([one-entry-predicate](invariants.md#one-entry-predicate))
 admits a node when either:
 
 - it is within `SeedCloseDist` flat and on the same deck (arm's length, no line of sight needed); or
@@ -274,12 +276,13 @@ At `debug_level 2`:
 ```
 [ai] Replanning (entry stretch blocked): NPC (-8.7, 1.2, 29.2) -> goal (-5.4, 0.6, 26.9),
      start (-8.7, 0.6, 29.2), cameFrom=(-8.7, 0.6, 28.6), blocked x2 in 4s
-[nav] FindPath: 72 candidates in range, 2 visible entry seeds: #102(1,4m, +1,0y) #98(4,3m, +0,4y)
+[nav] FindPath: 72 candidates in range, 9 probed, 2 visible entry seeds: #102(1,4m, +1,0y) #98(4,3m, +0,4y)
 [nav] FindPath: total 9,5m via #98 -> goal, cameFrom=(-9.0, 1.6, 30.5)
 ```
 
 - **`NPC` vs `start`** - body vs floor under it; ~0.6 m apart.
 - **`0 visible entry seeds`** on flat ground is a red flag: the deck test rejects everything.
+- **`probed`** well below `candidates` is normal: the rest could not beat the route found.
 - **`+N,Ny`** per seed - deck difference, floor to floor. ~0 on the NPC's own level.
 - **the chain** - `#98 -> #99 -> #101(stair) -> goal` is healthy. A one-hop `via #98 -> goal`
   means no edge was used.

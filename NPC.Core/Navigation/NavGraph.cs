@@ -98,6 +98,15 @@ namespace NPC.Core.Navigation
             public readonly float Cost = cost;
         }
 
+        // A route entry candidate: its distance, its seed cost and the A* f it would enter with.
+        private readonly struct SeedCandidate(int id, float dist, float g, float f)
+        {
+            public readonly int Id = id;
+            public readonly float Dist = dist;
+            public readonly float G = g;
+            public readonly float F = f;
+        }
+
         // ------------------------------------------------------------------
         // Save file
         // ------------------------------------------------------------------
@@ -1751,8 +1760,7 @@ namespace NPC.Core.Navigation
         private static readonly Dictionary<int, Vector3> PathWorld = [];
         private static readonly Dictionary<int, float> PathFloors = [];
         private static readonly HashSet<int> PathExcluded = [];
-        private static readonly List<int> PathStartIds = [];
-        private static readonly List<KeyValuePair<int, float>> PathCandidates = [];
+        private static readonly List<SeedCandidate> PathCandidates = [];
         private static readonly List<int> PathOpen = [];
         private static readonly HashSet<int> PathClosed = [];
         private static readonly Dictionary<int, int> PathCameFrom = [];
@@ -1992,8 +2000,9 @@ namespace NPC.Core.Navigation
                 return new NavPath([end], [false], [endFloorY]);
             }
 
-            // Seeding is all-candidate; avoidEntry is barred from the whole search.
-            // docs/invariants.md#avoid-entry-bars-the-whole-search
+            // Every node within MaxSeedDist is an entry candidate, probed only when A* would expand it
+            // next, so one that cannot beat a finish already found is never probed. docs/navigation.md#4-a-findpath
+            // avoidEntry is barred from the whole search: docs/invariants.md#avoid-entry-bars-the-whole-search
             HashSet<int>? excluded = null;
             if (avoidEntry.HasValue)
             {
@@ -2011,103 +2020,28 @@ namespace NPC.Core.Navigation
                 }
             }
 
-            List<int> startIds = PathStartIds;
-            List<KeyValuePair<int, float>> candidates = PathCandidates;
-            startIds.Clear();
+            List<SeedCandidate> candidates = PathCandidates;
             candidates.Clear();
             foreach (int id in world.Keys)
             {
                 if (excluded != null && excluded.Contains(id)) continue;
 
                 float d = Vector3.Distance(start, world[id]);
-                if (d <= MaxSeedDist) candidates.Add(new KeyValuePair<int, float>(id, d));
+                if (d > MaxSeedDist) continue;
+
+                float g = SeedCost(start, startFloorY, world[id], floors[id], cameFromPos);
+                candidates.Add(new SeedCandidate(id, d, g, g + Vector3.Distance(world[id], end)));
             }
-            candidates.Sort((x, y) => x.Value.CompareTo(y.Value));
+            candidates.Sort((x, y) => x.F.CompareTo(y.F));
+            int nextCandidate = 0;
+            int probed = 0;
+            int seeds = 0;
+            bool fellBack = false;
             StringBuilder seedTrace = SeedTrace.Clear();
-            // Why the nearest candidates were turned down. Without it a seed list that
+            // Why candidates were turned down. Without it a seed list that
             // skips the node at the NPC's feet is undiagnosable.
             StringBuilder rejectTrace = RejectTrace.Clear();
             int rejectsShown = 0;
-            foreach (KeyValuePair<int, float> candidate in candidates)
-            {
-                Vector3 candidateWorld = world[candidate.Key];
-                float candidateFloorY = floors[candidate.Key];
-                string? reject = null;
-                if (DoorBlocks(start, candidateWorld))
-                {
-                    reject = "door";
-                }
-                else if (!CanReachEntry(start, startFloorY, candidateWorld, candidateFloorY,
-                             NodeById(candidate.Key)))
-                {
-                    reject = Mathf.Abs(candidateFloorY - startFloorY) > SameLevelDeltaY ? "deck" : "los";
-                }
-
-                if (reject != null)
-                {
-                    if (debug && rejectsShown < 5)
-                    {
-                        rejectsShown++;
-                        rejectTrace.Append($" #{candidate.Key}({candidate.Value:0.0}m,")
-                            .Append($"{candidateFloorY - startFloorY:+0.0;-0.0;0.0}y,{reject})");
-                    }
-                    continue;
-                }
-                startIds.Add(candidate.Key);
-                if (debug)
-                {
-                    seedTrace.Append($" #{candidate.Key}({candidate.Value:0.0}m, {candidateFloorY - startFloorY:+0.0;-0.0;0.0}y)");
-                }
-            }
-            if (debug)
-            {
-                NpcLog.Log.LogInfo(
-                $"[nav] FindPath: {candidates.Count} candidates in range, {startIds.Count} visible entry seeds " +
-                $"(start floor {startFloorY:0.00}):{seedTrace}" +
-                (rejectTrace.Length > 0 ? $" | nearest rejected:{rejectTrace}" : ""));
-            }
-
-            if (startIds.Count == 0)
-            {
-                // Nothing reachable around: fall back to the nearest active node so
-                // a goto and long-distance Follow still work. Ranked by GoalCost so
-                // the fallback cannot undo the level restriction seeding just applied.
-                int nearest = -1;
-                float nearestCost = float.MaxValue;
-                for (int i = 0; i < Nodes.Count; i++)
-                {
-                    if (!owners.IsLive(Nodes[i]) || !world.ContainsKey(Nodes[i].Id)) continue;
-
-                    if (excluded != null && excluded.Contains(Nodes[i].Id)) continue;
-
-                    Vector3 nodeWorld = world[Nodes[i].Id];
-                    if (DoorBlocks(start, nodeWorld)) continue;
-
-                    float cost = GoalCost(start, startFloorY, nodeWorld, floors[Nodes[i].Id]);
-                    // docs/invariants.md#fallback-respects-backtrack
-                    if (cameFromPos.HasValue &&
-                        (nodeWorld - cameFromPos.Value).sqrMagnitude < BacktrackRadius * BacktrackRadius)
-                    {
-                        cost += BacktrackPenalty;
-                    }
-                    if (cost < nearestCost)
-                    {
-                        nearestCost = cost;
-                        nearest = i;
-                    }
-                }
-                if (nearest >= 0)
-                {
-                    startIds.Add(Nodes[nearest].Id);
-                    if (debug)
-                    {
-                        NpcLog.Log.LogInfo(
-                        "[nav] FindPath: no clear entry seed, falling back to nearest active node " +
-                        "#" + Nodes[nearest].Id);
-                    }
-                }
-            }
-            if (startIds.Count == 0) return null;
 
             // A* over the cached adjacency lists.
             List<int> openSet = PathOpen;
@@ -2121,21 +2055,6 @@ namespace NPC.Core.Navigation
             gScore.Clear();
             fScore.Clear();
 
-            foreach (int sn in startIds)
-            {
-                // Elevation-aware: charging the climb makes the NPC enter at the
-                // Foot of the stairs instead of scrabbling at the tread beside it.
-                float g = GoalCost(start, startFloorY, world[sn], floors[sn]);
-                if (cameFromPos.HasValue && (world[sn] - cameFromPos.Value).sqrMagnitude <
-                    BacktrackRadius * BacktrackRadius)
-                {
-                    g += BacktrackPenalty;
-                }
-                openSet.Add(sn);
-                gScore[sn] = g;
-                fScore[sn] = g + Vector3.Distance(world[sn], end);
-            }
-
             // The search does not stop at the first node that can see the goal - that
             // let a backward node with a lucky view steal the route from the forward one.
             int goalId = -1;
@@ -2147,12 +2066,80 @@ namespace NPC.Core.Navigation
             // An approach node must get the NPC meaningfully nearer, or an NPC
             // closing the last metres on its own is planned back onto the node behind it.
             float startGoalCost = GoalCost(start, startFloorY, end, endFloorY) - ApproachMinGain;
-            while (openSet.Count > 0)
+            while (true)
             {
-                int current = openSet[0];
-                for (int i = 1; i < openSet.Count; i++)
+                int current = -1;
+                float currentF = float.MaxValue;
+                foreach (int id in openSet)
                 {
-                    if (fScore[openSet[i]] < fScore[current]) current = openSet[i];
+                    if (fScore[id] < currentF)
+                    {
+                        currentF = fScore[id];
+                        current = id;
+                    }
+                }
+
+                // The next candidate would be expanded before `current`: probe it now.
+                if (nextCandidate < candidates.Count && candidates[nextCandidate].F <= currentF)
+                {
+                    SeedCandidate c = candidates[nextCandidate++];
+                    // Already reached at least as cheaply through the graph: the probe cannot change the route.
+                    if (closedSet.Contains(c.Id) || (gScore.TryGetValue(c.Id, out float known) && known <= c.G)) continue;
+
+                    probed++;
+                    Vector3 candidateWorld = world[c.Id];
+                    float candidateFloorY = floors[c.Id];
+                    string? reject = null;
+                    if (DoorBlocks(start, candidateWorld))
+                    {
+                        reject = "door";
+                    }
+                    else if (!CanReachEntry(start, startFloorY, candidateWorld, candidateFloorY, NodeById(c.Id)))
+                    {
+                        reject = Mathf.Abs(candidateFloorY - startFloorY) > SameLevelDeltaY ? "deck" : "los";
+                    }
+
+                    if (reject != null)
+                    {
+                        if (debug && rejectsShown < 5)
+                        {
+                            rejectsShown++;
+                            rejectTrace.Append($" #{c.Id}({c.Dist:0.0}m,")
+                                .Append($"{candidateFloorY - startFloorY:+0.0;-0.0;0.0}y,{reject})");
+                        }
+                        continue;
+                    }
+
+                    seeds++;
+                    if (debug)
+                    {
+                        seedTrace.Append($" #{c.Id}({c.Dist:0.0}m, {candidateFloorY - startFloorY:+0.0;-0.0;0.0}y)");
+                    }
+                    cameFrom.Remove(c.Id);
+                    gScore[c.Id] = c.G;
+                    fScore[c.Id] = c.F;
+                    if (!openSet.Contains(c.Id)) openSet.Add(c.Id);
+                    continue;
+                }
+
+                if (current < 0)
+                {
+                    if (seeds > 0 || fellBack) break;
+
+                    fellBack = true;
+                    if (debug) LogSeeds();
+                    int fallback = FallbackEntry(owners, start, startFloorY, cameFromPos, excluded, world, floors, out float fallbackG);
+                    if (fallback < 0) break;
+
+                    if (debug)
+                    {
+                        NpcLog.Log.LogInfo(
+                        "[nav] FindPath: no clear entry seed, falling back to nearest active node #" + fallback);
+                    }
+                    openSet.Add(fallback);
+                    gScore[fallback] = fallbackG;
+                    fScore[fallback] = fallbackG + Vector3.Distance(world[fallback], end);
+                    continue;
                 }
 
                 // Can we walk the last stretch directly from here? Probed and length capped.
@@ -2181,10 +2168,10 @@ namespace NPC.Core.Navigation
                 closedSet.Add(current);
 
                 // Optimal stop: f is a lower bound for any route through an unexpanded
-                // node, so once bestTotal is at or below every remaining f, nothing wins.
+                // node or unprobed candidate, so once bestTotal is at or below every remaining f, nothing wins.
                 if (bestTotal < float.MaxValue)
                 {
-                    float minF = float.MaxValue;
+                    float minF = nextCandidate < candidates.Count ? candidates[nextCandidate].F : float.MaxValue;
                     foreach (int t in openSet)
                     {
                         if (fScore[t] < minF) minF = fScore[t];
@@ -2215,6 +2202,7 @@ namespace NPC.Core.Navigation
                     if (!openSet.Contains(e.To)) openSet.Add(e.To);
                 }
             }
+            if (debug && !fellBack) LogSeeds();
 
             // Only a validated finish may append the goal as a waypoint; an approach
             // must not, or it recreates the beeline the finish cap exists to prevent.
@@ -2303,6 +2291,59 @@ namespace NPC.Core.Navigation
             }
 
             return new NavPath(waypoints, forced, decks);
+
+            void LogSeeds()
+            {
+                NpcLog.Log.LogInfo(
+                $"[nav] FindPath: {candidates.Count} candidates in range, {probed} probed, {seeds} visible entry seeds " +
+                $"(start floor {startFloorY:0.00}):{seedTrace}" +
+                (rejectTrace.Length > 0 ? $" | rejected:{rejectTrace}" : ""));
+            }
+        }
+
+        /// <summary>
+        /// A route entry's starting cost. Elevation-aware: charging the climb makes the NPC enter at
+        /// the foot of the stairs instead of scrabbling at the tread beside it.
+        /// </summary>
+        private static float SeedCost(Vector3 start, float startFloorY, Vector3 nodeWorld, float nodeFloorY,
+            Vector3? cameFromPos)
+        {
+            float cost = GoalCost(start, startFloorY, nodeWorld, nodeFloorY);
+            // docs/invariants.md#fallback-respects-backtrack
+            if (cameFromPos.HasValue &&
+                (nodeWorld - cameFromPos.Value).sqrMagnitude < BacktrackRadius * BacktrackRadius)
+            {
+                cost += BacktrackPenalty;
+            }
+            return cost;
+        }
+
+        /// <summary>
+        /// No entry passed: the nearest active node so a goto and long-distance Follow still work.
+        /// Ranked by GoalCost so the fallback cannot undo the level restriction seeding just applied.
+        /// </summary>
+        private static int FallbackEntry(OwnerSnapshot owners, Vector3 start, float startFloorY, Vector3? cameFromPos,
+            HashSet<int>? excluded, Dictionary<int, Vector3> world, Dictionary<int, float> floors, out float cost)
+        {
+            int nearest = -1;
+            cost = float.MaxValue;
+            foreach (KeyValuePair<int, Vector3> kv in world)
+            {
+                Node? n = NodeById(kv.Key);
+                if (n == null || !owners.IsLive(n)) continue;
+
+                if (excluded != null && excluded.Contains(kv.Key)) continue;
+
+                if (DoorBlocks(start, kv.Value)) continue;
+
+                float c = SeedCost(start, startFloorY, kv.Value, floors[kv.Key], cameFromPos);
+                if (c < cost)
+                {
+                    cost = c;
+                    nearest = kv.Key;
+                }
+            }
+            return nearest;
         }
 
         /// <summary>

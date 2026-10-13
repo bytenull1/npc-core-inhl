@@ -15,6 +15,7 @@ namespace NPC.Core.Agents
         {
             using NpcRegistry.ActingScope _ = NpcRegistry.Acting(this);
             Hands.Follow(WalkSpeed);
+            NpcDoors.Prefetch();
         }
 
         /// <summary>

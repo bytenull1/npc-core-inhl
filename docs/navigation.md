@@ -126,6 +126,10 @@ live node gets an entry, even an empty one, since `FindPath` treats `_edges.Keys
 nodes it may seed from or route through. It rebuilds when the graph is dirty or the dock or ship
 layout changes, and clears the node hover cache.
 
+Between rebuilds a node's hover is probed again once it is older than `NodeHoverTtl`, at most
+`HoverReprobesPerFrame` nodes a frame; the rest keep their hover a frame longer. A node with no
+hover yet always probes. A shared expiry made the next `FindPath` re-probe every live node at once.
+
 A link needs no line of sight, height check or distance cap
 ([links-have-no-los](invariants.md#links-have-no-los)) - it is added exactly as drawn.
 

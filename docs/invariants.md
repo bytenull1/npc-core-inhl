@@ -1273,12 +1273,14 @@ largest allocation after the HUD. `SpaceShip.rooms` is a fixed array, so its ref
 
 **Rule.** A cache that re-runs `FindObjectsOfType` on a timer asks `SceneScan.MayRescan` first. A
 sweep made for one decision reads `SceneScan.ThisFrame`. Only a first fill or a forced rescan
-(`InvalidateGates`, a destroyed entry) skips the budget.
+(`InvalidateGates`, a destroyed entry) skips the budget. The caches routing reads are refreshed
+`PrefetchLead` before they expire, on a frame with no path search and no other sweep; the refresh on
+read stays the fallback.
 
 **Why.** Each sweep costs milliseconds. Expired 5 s caches could all rescan inside one `FindPath`
 call, and an errand's `Count` and `TryStart` swept the scene twice in one frame. Both landed on the
 mod's slowest frames.
 
 **Enforced in.** `SceneScan`; `NavProbe.EnsureGates`, `NavGraph.RefreshSpaceObjects`,
-`NpcDoors.RefreshDetectors` / `RefreshAirlocks` / `RefreshPasswordGates`, `SellPens.EnsurePens`;
+`NpcDoors.RefreshDetectors` / `RefreshAirlocks` / `RefreshPasswordGates` / `Prefetch`, `SellPens.EnsurePens`;
 `NpcAgent.RefreshEnvironments` / `TrackFootstepDoors`; YourBuddy's errand collectors.

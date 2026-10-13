@@ -38,7 +38,11 @@ namespace NPC.Core.Agents
             });
             plan = chosen;
             if (reachable) return null;
-            if (!hasApproach) return "no nav node near it has a clear walk to it";
+            if (!hasApproach)
+            {
+                if (NpcLog.Level >= 2) NpcLog.Log.LogInfo($"[ai] No reach node for {task.TargetPoint:0.0}: {Misses}");
+                return "no nav node near it has a clear walk to it";
+            }
             return blockedByDoor ? "a door I cannot open is in the way" : "there is no path to it";
         }
 
@@ -49,8 +53,32 @@ namespace NPC.Core.Agents
         /// </summary>
         public static bool FindReachNode(ReachTask task) => FindReachNode(task, null);
 
+        /// <summary>
+        /// Which check turned down the last FindReachNode's nodes and stand points, for the level-2 failure line.
+        /// </summary>
+        private struct ReachMisses
+        {
+            public int Nodes, Outdoor, OffDeck, Stands, InPen, NoWalk, NoSight;
+
+            public override readonly string ToString() =>
+                $"{Nodes} node(s) within {ReachNodeRadius:0}m - {Outdoor} outdoor, {OffDeck} off its deck; " +
+                $"{Stands} stand point(s) - {InPen} not allowed, {NoWalk} no walk from the node, {NoSight} no sight of it; " +
+                $"nearest {NearestMisses}";
+        }
+        private static ReachMisses Misses;
+        // Level 2: each of the nearest ReachTraceNodes nodes and its stand points' verdicts, e.g. "#286 0,8m: walk sight sight".
+        private const int ReachTraceNodes = 3;
+        private static readonly System.Text.StringBuilder NearestMisses = new();
+
+        private static void TraceMiss(string verdict)
+        {
+            if (NpcLog.Level >= 2 && Misses.Nodes <= ReachTraceNodes) NearestMisses.Append(' ').Append(verdict);
+        }
+
         private static bool FindReachNode(ReachTask task, System.Func<Vector3, bool>? reachable)
         {
+            Misses = default;
+            NearestMisses.Clear();
             Vector3 targetPos = task.TargetPoint;
             NavGraph.CollectActiveNodes(ReachNodeBuffer);
 
@@ -71,22 +99,54 @@ namespace NPC.Core.Agents
                 if (flatSq >= ReachNodeRadius * ReachNodeRadius) break;
                 if (flatSq < 0.0001f) continue;
 
+                Misses.Nodes++;
+                if (NpcLog.Level >= 2 && Misses.Nodes <= ReachTraceNodes)
+                {
+                    NearestMisses.Append(Misses.Nodes > 1 ? "; #" : "#").Append(active.Id).Append(' ')
+                        .Append(Mathf.Sqrt(flatSq).ToString("0.0")).Append("m:");
+                }
                 // An Outdoor node is not a stand point for a walk that may not go outside.
-                if (!task.MayGoOutside && active.Type == NodeType.Outdoor) continue;
+                if (!task.MayGoOutside && active.Type == NodeType.Outdoor)
+                {
+                    Misses.Outdoor++;
+                    TraceMiss("outdoor");
+                    continue;
+                }
 
                 float nodeFloor = active.FloorY;
                 float rise = targetPos.y - nodeFloor;
-                if (rise < -task.ReachBelow || rise > ReachHeight) continue;
+                if (rise < -task.ReachBelow || rise > ReachHeight)
+                {
+                    Misses.OffDeck++;
+                    TraceMiss($"rise {rise:0.00}");
+                    continue;
+                }
 
                 Vector3 back = -toTarget / Mathf.Sqrt(flatSq);
                 foreach (float standOff in task.StandOffs)
                 {
                     Vector3 stand = new(targetPos.x + back.x * standOff, nodeFloor, targetPos.z + back.z * standOff);
-                    if (!task.StandAllowed(stand)) continue;
-                    if (!NavProbe.WalkLos(node, stand, FollowSameLevelDeltaY)) continue;
+                    Misses.Stands++;
+                    if (!task.StandAllowed(stand))
+                    {
+                        Misses.InPen++;
+                        TraceMiss("pen");
+                        continue;
+                    }
+                    if (!NavProbe.WalkLos(node, stand, FollowSameLevelDeltaY))
+                    {
+                        Misses.NoWalk++;
+                        TraceMiss("walk");
+                        continue;
+                    }
 
                     Vector3 eye = new(stand.x, nodeFloor + ReachEyeHeight, stand.z);
-                    if (!NavProbe.CanSee(eye, targetPos, task.Own, out _)) continue;
+                    if (!NavProbe.CanSee(eye, targetPos, task.Own, out _))
+                    {
+                        Misses.NoSight++;
+                        TraceMiss("sight");
+                        continue;
+                    }
                     if (reachable != null && !reachable(node)) break;
 
                     task.Node = node;

@@ -46,6 +46,10 @@ namespace NPC.Core.World
         private const float SceneCacheTtl = 5f;
         private const float ImpassableGatesTtl = 1f;
         /// <summary>
+        /// How far ahead of its TTL Prefetch refreshes a cache, so a path search finds it fresh.
+        /// </summary>
+        private const float PrefetchLead = 0.25f;
+        /// <summary>
         /// Cheap first pass before the gate's volume is tested at all.
         /// </summary>
         private const float DoorBroadPhaseRadius = 3f;
@@ -154,9 +158,9 @@ namespace NPC.Core.World
             return true;
         }
 
-        private static void RefreshDetectors()
+        private static void RefreshDetectors(float lead = 0f)
         {
-            if (_detectors != null && Time.time < _detectorsRefreshAt) return;
+            if (_detectors != null && Time.time + lead < _detectorsRefreshAt) return;
             if (!SceneScan.MayRescan(_detectors == null)) return;
 
             // Switched-off detectors too: a sealed room's doors have one. docs/invariants.md#an-npc-opens-only-what-the-player-could
@@ -285,9 +289,9 @@ namespace NPC.Core.World
         /// Gates no NPC can currently get through, for the path search. Short TTL: lock and open state
         /// both change during play.
         /// </summary>
-        private static void RefreshImpassableGates()
+        private static void RefreshImpassableGates(float lead = 0f)
         {
-            if (Time.time < _impassableGatesRefreshAt) return;
+            if (Time.time + lead < _impassableGatesRefreshAt) return;
 
             _impassableGatesRefreshAt = Time.time + ImpassableGatesTtl;
             ImpassableGates.Clear();
@@ -295,6 +299,22 @@ namespace NPC.Core.World
             {
                 if (BlocksRouting(gate)) ImpassableGates.Add(gate);
             }
+        }
+
+        /// <summary>
+        /// Refreshes the caches routing reads a little before they expire, on a frame with no path search,
+        /// at most one sweep per frame. The refresh on read stays the fallback. docs/invariants.md#scene-sweeps-are-budgeted
+        /// </summary>
+        internal static void Prefetch()
+        {
+            if (NavGraph.SearchedThisFrame) return;
+
+            if (!SceneScan.SweptThisFrame) NavProbe.EnsureGates(PrefetchLead);
+            if (!SceneScan.SweptThisFrame) RefreshDetectors(PrefetchLead);
+            if (!SceneScan.SweptThisFrame) RefreshAirlocks(PrefetchLead);
+            if (!SceneScan.SweptThisFrame) RefreshPasswordGates(PrefetchLead);
+            // Reads lock and open state; never older than ImpassableGatesTtl, now only refreshed sooner.
+            RefreshImpassableGates(PrefetchLead);
         }
 
         /// <summary>
@@ -502,9 +522,9 @@ namespace NPC.Core.World
         [System.Obsolete("A chamber is no room. Test a position with ChamberAt(point).")]
         public static bool RoomIsAirlockChamber(Room? room) => false;
 
-        private static void RefreshAirlocks()
+        private static void RefreshAirlocks(float lead = 0f)
         {
-            if (_airlocks != null && Time.time < _airlocksRefreshAt) return;
+            if (_airlocks != null && Time.time + lead < _airlocksRefreshAt) return;
             if (!SceneScan.MayRescan(_airlocks == null)) return;
 
             _airlocks = [.. Object.FindObjectsOfType<Airlock>()];
@@ -530,9 +550,9 @@ namespace NPC.Core.World
         /// </summary>
         public static bool IsPasswordGate(Gate gate) => PinPanelFor(gate) != null;
 
-        private static void RefreshPasswordGates()
+        private static void RefreshPasswordGates(float lead = 0f)
         {
-            if (Time.time < _passwordGatesRefreshAt || !SceneScan.MayRescan(_passwordGatesRefreshAt <= 0f)) return;
+            if (Time.time + lead < _passwordGatesRefreshAt || !SceneScan.MayRescan(_passwordGatesRefreshAt <= 0f)) return;
 
             PasswordGates.Clear();
             foreach (DoorPinCode pin in Object.FindObjectsOfType<DoorPinCode>(true))

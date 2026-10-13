@@ -250,9 +250,12 @@ namespace NPC.Core.Navigation
             FloorAnswers.Clear();
         }
 
-        private static void EnsureGates()
+        /// <summary>
+        /// `lead`: refresh this much ahead of the TTL, for NpcDoors.Prefetch.
+        /// </summary>
+        internal static void EnsureGates(float lead = 0f)
         {
-            if (Time.time < _gatesRefreshAt || !SceneScan.MayRescan(_gatesForced)) return;
+            if (Time.time + lead < _gatesRefreshAt || !SceneScan.MayRescan(_gatesForced)) return;
             // Stamped before the measuring loop: anything below that probed would
             // otherwise re-enter this method forever.
             _gatesRefreshAt = Time.time + 5f;

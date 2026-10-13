@@ -38,6 +38,12 @@ namespace NPC.Core.Navigation
         /// </summary>
         public static bool LastPathBlockedByDoor { get; private set; }
 
+        /// <summary>
+        /// A path search is running now, or ran this frame: the scene-cache prefetch keeps off both.
+        /// </summary>
+        internal static bool InSearch => _inFindPath;
+        internal static bool SearchedThisFrame => _searchFrame == Time.frameCount;
+
         private static bool DoorBlocks(Vector3 a, Vector3 b)
         {
             if (SegmentBlockedByDoor == null || !SegmentBlockedByDoor(a, b)) return false;
@@ -197,9 +203,9 @@ namespace NPC.Core.Navigation
         private static bool _edgesDirty = true;
         private static string? _lastDockSig = null;
 
-        // Node id -> how far the marker floats above the floor underneath it.
+        // Node id -> how far the marker floats above the floor underneath it, and when that was taken.
         // See NodeFloorY for why the hover is cached rather than the floor height.
-        private static readonly Dictionary<int, float> NodeHover = [];
+        private static readonly Dictionary<int, HoverSample> NodeHover = [];
         /// <summary>
         /// Survives the TTL and every edge rebuild: the last hover actually measured for
         /// a node, used when the floor under it cannot be probed at all.
@@ -207,8 +213,17 @@ namespace NPC.Core.Navigation
         private static readonly Dictionary<int, float> LastKnownHover = [];
         private static float _typicalHover;
         private static int _typicalHoverAt = -1;
-        private static float _nodeHoverRefreshAt = 0f;
+        // Per node: older than this, the hover is probed again, at most HoverReprobesPerFrame a frame.
         private const float NodeHoverTtl = 3f;
+        private const int HoverReprobesPerFrame = 16;
+        private static int _reprobeFrame = -1;
+        private static int _reprobes;
+
+        private readonly struct HoverSample(float hover, float at)
+        {
+            public readonly float Hover = hover;
+            public readonly float At = at;
+        }
 
         // Scene cache of every SpaceObject (stations, derelicts) for owner resolution.
         private static readonly List<SpaceObject> SpaceObjects = [];
@@ -799,6 +814,7 @@ namespace NPC.Core.Navigation
             }
 
             internal NodeType Type => _node.Type;
+            internal int Id => _node.Id;
 
             /// <summary>
             /// The deck under it, as FloorAt(World) gives. docs/invariants.md#unprobeable-floors-keep-the-last-hover
@@ -1582,21 +1598,38 @@ namespace NPC.Core.Navigation
         {
             if (n == null) return NavProbe.FloorHeight(worldPos);
 
-            if (!NodeHover.TryGetValue(n.Id, out float hover))
+            // An aged hover is kept once this frame's re-probes are spent; a node never measured always probes.
+            if (NodeHover.TryGetValue(n.Id, out HoverSample cached) &&
+                (Time.time - cached.At < NodeHoverTtl || !MayReprobeHover()))
             {
-                if (NavProbe.TryFloorHeight(worldPos, out float probed))
-                {
-                    hover = worldPos.y - probed;
-                    LastKnownHover[n.Id] = hover;
-                }
-                else if (!LastKnownHover.TryGetValue(n.Id, out hover))
-                {
-                    hover = TypicalHover();
-                }
-
-                NodeHover[n.Id] = hover;
+                return worldPos.y - cached.Hover;
             }
+
+            if (NavProbe.TryFloorHeight(worldPos, out float probed))
+            {
+                float measured = worldPos.y - probed;
+                LastKnownHover[n.Id] = measured;
+                NodeHover[n.Id] = new HoverSample(measured, Time.time);
+                return worldPos.y - measured;
+            }
+
+            if (!LastKnownHover.TryGetValue(n.Id, out float hover)) hover = TypicalHover();
+
+            NodeHover[n.Id] = new HoverSample(hover, Time.time);
             return worldPos.y - hover;
+        }
+
+        private static bool MayReprobeHover()
+        {
+            if (_reprobeFrame != Time.frameCount)
+            {
+                _reprobeFrame = Time.frameCount;
+                _reprobes = 0;
+            }
+            if (_reprobes >= HoverReprobesPerFrame) return false;
+
+            _reprobes++;
+            return true;
         }
 
         /// <summary>
@@ -1632,14 +1665,6 @@ namespace NPC.Core.Navigation
         /// </summary>
         internal static float FloorAt(Vector3 worldPos) => FloorYOf(NodeAt(worldPos), worldPos);
 
-        private static void RefreshNodeFloors()
-        {
-            if (Time.time < _nodeHoverRefreshAt) return;
-
-            _nodeHoverRefreshAt = Time.time + NodeHoverTtl;
-            NodeHover.Clear();
-        }
-
         // ----------------------------------------------------------------
         // Edge cache
         // ----------------------------------------------------------------
@@ -1647,7 +1672,6 @@ namespace NPC.Core.Navigation
         private static void EnsureEdgesFresh()
         {
             EnsureLoaded();
-            RefreshNodeFloors();
             AnchorPendingShipNodes();
             string sig = DockSignature();
             int layoutSig = ShipLayoutSignature();
@@ -1809,6 +1833,7 @@ namespace NPC.Core.Navigation
         private static readonly StringBuilder SeedTrace = new();
         private static readonly StringBuilder RejectTrace = new();
         private static bool _inFindPath;
+        private static int _searchFrame = -1;
         private static bool _reentryWarned;
         private static readonly OwnerSnapshot NodeAtOwners = new();
 
@@ -1961,6 +1986,7 @@ namespace NPC.Core.Navigation
                 return null;
             }
             _inFindPath = true;
+            _searchFrame = Time.frameCount;
             try
             {
                 NavPath? plan = FindPathCore(start, end, cameFromPos, avoidEntry, mayGoOutside);

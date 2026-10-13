@@ -70,14 +70,14 @@ an agent's `INpcBrain`. Nothing in NPC.Core knows any mod.
 | Gate placement per frame | `NavProbe.FrameGates` | every frame ([probes.md](probes.md#caches)) |
 | Gate openings | `NavProbe.GateOpenings` | `InvalidateGates()` only |
 | Node edges, id index | `NavGraph._edges`, `NodesById` | `_edgesDirty`, dock change, ship layout change |
-| Node hover | `NavGraph.NodeHover` | 3 s TTL; cleared on edge rebuild |
+| Node hover | `NavGraph.NodeHover` | per node after 3 s, 16 re-probes a frame; cleared on edge rebuild |
 | Space objects | `NavGraph.SpaceObjects` | 5 s TTL, or at once when one is destroyed |
 | Collider kinds, floor answers | `NavProbe.ColliderKinds` / `FloorAnswers` | every frame |
 | Scene arrays | `SceneScan.ThisFrame` | every frame |
-| Doorway sensors (by gate), airlocks, pin panels | `NpcDoors` | 5 s TTL each; `ResetScene` on a new game or a load |
+| Doorway sensors (by gate), airlocks, pin panels | `NpcDoors` | 5 s TTL each, refreshed early by `Prefetch`; `ResetScene` on a new game or a load |
 | Airlocks listened to | `NpcAirlocks.Listening` | swept again every 30 s; `ResetScene` |
 | The player's trail outside | `NpcTrail.Points` | a new walk outside, the world moving; `ResetScene` |
-| Gates routing avoids | `NpcDoors.ImpassableGates` | 1 s TTL; `ResetScene` |
+| Gates routing avoids | `NpcDoors.ImpassableGates` | 1 s TTL, refreshed early by `Prefetch`; `ResetScene` |
 | Sell station pens | `SellPens.Pens` | 10 s TTL |
 | Lifecare icons | `NpcLifecare.Icons` | re-created when a clone is lost; an NPC's goes when it unregisters |
 | Environments | `NpcAgent`, per agent | 5 s TTL |

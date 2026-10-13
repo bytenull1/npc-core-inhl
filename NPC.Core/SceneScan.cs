@@ -1,3 +1,4 @@
+using NPC.Core.Navigation;
 using UnityEngine;
 
 namespace NPC.Core
@@ -11,8 +12,10 @@ namespace NPC.Core
         private const float SummaryInterval = 60f;
 
         private static int _rescanFrame = -1;
+        private static int _arrayFrame = -1;
         private static int _rescans;
         private static int _deferred;
+        private static int _inSearch;
         private static float _windowStart = -1f;
 
         /// <summary>
@@ -29,6 +32,7 @@ namespace NPC.Core
             }
             _rescanFrame = frame;
             _rescans++;
+            if (NavGraph.InSearch) _inSearch++;
             LogSummary();
             return true;
         }
@@ -44,12 +48,18 @@ namespace NPC.Core
             if (NpcLog.Level >= 2)
             {
                 NpcLog.Log.LogInfo($"[probe] Scene rescans: {_rescans} in the last {Time.time - _windowStart:0} s, " +
-                                   $"{_deferred} put off to a later frame");
+                                   $"{_deferred} put off to a later frame, {_inSearch} inside a path search");
             }
             _windowStart = Time.time;
             _rescans = 0;
             _deferred = 0;
+            _inSearch = 0;
         }
+
+        /// <summary>
+        /// A sweep already landed on this frame, budgeted or per-frame. A prefetch waits for a frame without one.
+        /// </summary>
+        internal static bool SweptThisFrame => _rescanFrame == Time.frameCount || _arrayFrame == Time.frameCount;
 
         /// <summary>
         /// FindObjectsOfType, swept once per frame: a decision's Count and the winner's TryStart share it.
@@ -68,6 +78,7 @@ namespace NPC.Core
 
                 _items = Object.FindObjectsOfType<T>();
                 _frame = Time.frameCount;
+                _arrayFrame = _frame;
                 return _items;
             }
         }

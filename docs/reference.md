@@ -27,7 +27,8 @@ Before changing any height threshold, read
 | `BacktrackRadius` / `BacktrackPenalty` | 1.5 m / 3 | anti-backtrack around the last departed node |
 | `AvoidEntryRadius` | 0.5 m | how near counts as *that* node for `avoidEntry` |
 | `UserIdBase` | 100000 | first id for nodes you place |
-| `NodeHoverTtl` | 3 s | node floor offset cache |
+| `NodeHoverTtl` | 3 s | age at which a node's floor offset is probed again |
+| `HoverReprobesPerFrame` | 16 | aged floor offsets probed again per frame; the rest keep theirs a frame longer |
 | `LinkShiftTolerance` | 0.1 m | how far a link's room offset may drift and still hold |
 | `AnchorRetryInterval` | 2 s | retry anchoring ship nodes with no floor |
 
@@ -197,6 +198,7 @@ See [doors.md](doors.md).
 | `NpcCloseWindow` | 6 s | how long a close stays an NPC's: `Gate.OnClosed` fires at the end of the animation |
 | `SceneCacheTtl` | 5 s | doorway sensors, airlocks, pin panels |
 | `ImpassableGatesTtl` | 1 s | the gates routing avoids; lock and open state change in play |
+| `PrefetchLead` | 0.25 s | how far ahead of its TTL `Prefetch` refreshes a door cache, off path-search frames |
 | `DoorBroadPhaseRadius` | 3 m | a gate further than this from a route stretch is not tested |
 | `DoorBlockPadding` | 0.3 m | body clearance around a blocking gate's volume |
 | `ChamberFallbackRadius`, `ChamberFallbackHeight` | 1.5 m, 2 m | an airlock's chamber when its `PlayerDetector` volume cannot be read ([an-airlock-is-crossed-by-its-cycle](invariants.md#an-airlock-is-crossed-by-its-cycle)) |

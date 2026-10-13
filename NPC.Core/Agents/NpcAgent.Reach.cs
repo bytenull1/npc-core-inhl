@@ -60,18 +60,21 @@ namespace NPC.Core.Agents
                 delta.y = 0f;
                 return delta.sqrMagnitude;
             }
-            ReachNodeBuffer.Sort((a, b) => DistanceSq(a).CompareTo(DistanceSq(b)));
-            foreach (Vector3 node in ReachNodeBuffer)
+            ReachNodeBuffer.Sort((a, b) => DistanceSq(a.World).CompareTo(DistanceSq(b.World)));
+            foreach (NavGraph.ActiveNode active in ReachNodeBuffer)
             {
-                // An Outdoor node is not a stand point for a walk that may not go outside.
-                if (!task.MayGoOutside && NavGraph.TypeAt(node) == NodeType.Outdoor) continue;
-
+                Vector3 node = active.World;
                 Vector3 toTarget = targetPos - node;
                 toTarget.y = 0f;
                 float flatSq = toTarget.sqrMagnitude;
-                if (flatSq >= ReachNodeRadius * ReachNodeRadius || flatSq < 0.0001f) continue;
+                // Sorted by this distance, so every node after it is out of range too.
+                if (flatSq >= ReachNodeRadius * ReachNodeRadius) break;
+                if (flatSq < 0.0001f) continue;
 
-                float nodeFloor = NavGraph.FloorAt(node);
+                // An Outdoor node is not a stand point for a walk that may not go outside.
+                if (!task.MayGoOutside && active.Type == NodeType.Outdoor) continue;
+
+                float nodeFloor = active.FloorY;
                 float rise = targetPos.y - nodeFloor;
                 if (rise < -task.ReachBelow || rise > ReachHeight) continue;
 

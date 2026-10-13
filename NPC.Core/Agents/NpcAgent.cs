@@ -159,7 +159,7 @@ namespace NPC.Core.Agents
         /// Within this of its node the route counts as walked; further, it is planned again, at most ReachMaxReplans times.
         /// </summary>
         public const float ReachNodeArrival = 1.2f;
-        private static readonly List<Vector3> ReachNodeBuffer = [];
+        private static readonly List<NavGraph.ActiveNode> ReachNodeBuffer = [];
 
         // Room tracking / environment / safety
         private Room? forcedRoom = null;

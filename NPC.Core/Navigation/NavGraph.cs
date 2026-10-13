@@ -783,6 +783,44 @@ namespace NPC.Core.Navigation
         }
 
         /// <summary>
+        /// A live node as one query saw it: its position, its type, and its deck on demand,
+        /// without a NodeAt scan per node.
+        /// </summary>
+        internal readonly struct ActiveNode
+        {
+            private readonly Node _node;
+            internal readonly Vector3 World;
+
+            // object: Node is private to NavGraph and cannot appear in an internal signature.
+            internal ActiveNode(object node, Vector3 world)
+            {
+                _node = (Node)node;
+                World = world;
+            }
+
+            internal NodeType Type => _node.Type;
+
+            /// <summary>
+            /// The deck under it, as FloorAt(World) gives. docs/invariants.md#unprobeable-floors-keep-the-last-hover
+            /// </summary>
+            internal float FloorY => NodeFloorY(_node, World);
+        }
+
+        /// <summary>
+        /// Every active node with its type, into a list the caller owns and reuses.
+        /// </summary>
+        internal static void CollectActiveNodes(List<ActiveNode> into)
+        {
+            EnsureLoaded();
+            into.Clear();
+            OwnerSnapshot owners = new();
+            foreach (Node n in Nodes)
+            {
+                if (owners.IsLive(n)) into.Add(new ActiveNode(n, owners.WorldOf(n)));
+            }
+        }
+
+        /// <summary>
         /// Returns all nodes in world space (every owner, active or not). The node
         /// editor distance-culls the markers it draws near the player, so large
         /// graphs do not paint cross-hairs across the whole sector.

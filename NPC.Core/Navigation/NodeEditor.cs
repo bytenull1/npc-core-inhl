@@ -55,6 +55,9 @@ namespace NPC.Core.Navigation
             return shortcut.MainKey != KeyCode.None ? shortcut.MainKey.ToString() : "<unset>";
         }
 
+        // Draw-only panel, no GUILayout: docs/invariants.md#read-only-panels-build-on-repaint
+        private void Awake() => useGUILayout = false;
+
         private void Update()
         {
             bool consoleOpen = NpcConsole.IsOpen;

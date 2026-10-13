@@ -95,6 +95,11 @@ which nodes stand in each. A room has no volume, so a node belongs to the room w
 nearest. `TryResolve` matches free text ("go to the library", a shared prefix left out) to a room;
 a mod passes its own filler words, such as what players call its NPC.
 
+The list is rebuilt when the docked station or the node count changes. A station's rooms do not move.
+Otherwise it is rebuilt every 60 s, to catch moved furniture, or every 3 s while the node editor is
+open. A rebuild walks every transform in every room, so a short timer made each wander pick near the
+docking corridor a frame spike.
+
 ---
 
 ## 2. Nodes are not on the floor

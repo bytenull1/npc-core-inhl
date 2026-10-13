@@ -1248,13 +1248,15 @@ extension taken twice would have one mod delete the other's state.
 
 **Rule.** An IMGUI panel that only draws returns unless `Event.current.type` is `Repaint`, and costly
 text is cached behind a TTL. A panel with controls (`NpcTalkWindow`) must run on every event - cache
-its strings instead.
+its strings instead. No panel uses `GUILayout`, so each sets `useGUILayout = false`; the talk window
+turns it back on only while open.
 
 **Why.** `OnGUI` runs twice per frame. The status HUD rebuilt its text on both and was most of the
-mod's allocation, causing a GC every few hundred ms.
+mod's allocation, causing a GC every few hundred ms. With layout on, Unity also runs a layout pass
+that allocates on every frame, even for a panel that returns at once.
 
-**Enforced in.** `NodeEditor.OnGUI`, YourBuddy's `BuddyBehaviour.OnGUI` / `StatusText`,
-`NavGraph.DescribeNodes`.
+**Enforced in.** `NodeEditor.OnGUI`, `NpcTalkWindow.Update`, YourBuddy's `BuddyBehaviour.OnGUI` /
+`StatusText` / `Awake`, `NavGraph.DescribeNodes`.
 
 ### unity-name-reads-allocate
 

@@ -63,6 +63,8 @@ namespace NPC.Core.Interaction
         private void Update()
         {
             _lastUpdateFrame = Time.frameCount;
+            // The layout pass only while it has controls: docs/invariants.md#read-only-panels-build-on-repaint
+            useGUILayout = NpcInteraction.Open != null;
             // InputHandler drops all listeners on teardown and a scene load brings a new one, so the
             // subscription is re-checked rather than made once.
             InputHandler? handler = GameManager.Instance != null ? GameManager.Instance.InputHandler : null;

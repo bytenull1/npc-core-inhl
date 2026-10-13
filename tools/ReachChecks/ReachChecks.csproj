@@ -9,5 +9,7 @@
   <ItemGroup>
     <Compile Include="../../NPC.Core/Agents/NpcAgent.Reach.cs" Link="NpcAgent.Reach.cs" />
     <Compile Include="../../NPC.Core/Agents/ReachTask.cs" Link="ReachTask.cs" />
+  <Compile Include="../../NPC.Core/Agents/GoalProgressWindow.cs" Link="GoalProgressWindow.cs" />
+    <Compile Include="../../NPC.Core/Agents/WanderTargetBackoff.cs" Link="WanderTargetBackoff.cs" />
   </ItemGroup>
 </Project>

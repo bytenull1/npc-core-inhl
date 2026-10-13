@@ -813,6 +813,8 @@ namespace NPC.Core.Agents
         /// Picking and planning used to be separate frames with their own idle timers,
         /// which is how a failed pick turned into several seconds of standing still.
         /// </summary>
+        private readonly WanderTargetBackoff blockedWanderTargets = new();
+
         private bool TryStartWanderRoute(string? owner, Predicate<Vector3>? avoid)
         {
             if (NavGraph.NodeCount == 0)
@@ -822,12 +824,15 @@ namespace NPC.Core.Agents
             }
 
             int planned = 0;
+            bool doorBlocked = false, deferred = false;
+            Vector3 from = FloorUnderNpc();
             for (int attempt = 0; attempt < WanderPickAttempts; attempt++)
             {
                 // On its own side of the airlocks: docs/invariants.md#an-airlock-is-crossed-by-its-cycle
                 Vector3 node = NavGraph.RandomNode(owner, outdoors: outside);
                 if (node == Vector3.zero) break;
                 if (avoid != null && avoid(node)) continue;
+                if (blockedWanderTargets.Contains(node, from, Time.time)) { deferred = true; continue; }
 
                 planned++;
 
@@ -843,13 +848,16 @@ namespace NPC.Core.Agents
                 // docs/invariants.md#stand-still-when-door-blocked
                 if (NavGraph.LastPathBlockedByDoor)
                 {
-                    LogDoorBlockedRoute();
-                    wanderIdleUntil = Time.time + WanderRetryDelay;
-                    return false;
+                    blockedWanderTargets.Remember(node, from, Time.time);
+                    doorBlocked = true;
+                    // A blocked destination does not rule out other destinations on this side.
+                    continue;
                 }
             }
 
-            wanderIdleUntil = Time.time + WanderRetryDelay;
+            if (doorBlocked) LogDoorBlockedRoute();
+            wanderIdleUntil = Time.time + (doorBlocked || deferred ? 2f : WanderRetryDelay);
+            if (doorBlocked || deferred) return false;
             // Every pick turned down by `avoid` is a choice, not a stranded NPC.
             if (planned > 0 || avoid == null) StepOffAfterWanderFailure();
 

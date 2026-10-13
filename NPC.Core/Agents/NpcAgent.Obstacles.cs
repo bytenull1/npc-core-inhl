@@ -48,7 +48,6 @@ namespace NPC.Core.Agents
         private float lastGoalClosed;
         private bool lastGoalTargetChanged;
         private Vector3 lastGoalTarget;
-        private int lastGoalPlanIndex = -1;
         private int noProgressCycles = 0;
 
         // ------------------------------------------------------------------
@@ -499,18 +498,16 @@ namespace NPC.Core.Agents
             lastGoalClosed = lastGoalDist == float.MaxValue ? 0f : lastGoalDist - dist;
             lastGoalTargetChanged = (currentMoveTarget - lastGoalTarget).sqrMagnitude > 0.01f;
             lastGoalTarget = currentMoveTarget;
-            // Passing a waypoint moves the target to the next one, farther by design: that window says
-            // nothing either way. docs/invariants.md#progress-is-measured-to-one-target
-            bool passedWaypoint = lastGoalTargetChanged && navPlan != null && navPathIndex > lastGoalPlanIndex;
-            lastGoalPlanIndex = navPlan != null ? navPathIndex : -1;
-            if (lastGoalDist - dist > 0.35f)
+            // Distances to different goals cannot establish progress. docs/invariants.md#progress-is-measured-to-one-target
+            int progress = GoalProgressWindow.Evaluate(lastGoalTargetChanged, lastGoalClosed);
+            if (progress > 0)
             {
                 // Made real progress toward the goal.
                 noProgressSeconds = 0f;
                 noProgressLogged = false;
                 noProgressCycles = 0;
             }
-            else if (!passedWaypoint)
+            else if (progress < 0)
             {
                 noProgressSeconds += elapsed;
             }

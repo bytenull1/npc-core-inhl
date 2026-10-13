@@ -42,6 +42,18 @@ Check(agent.PlanReach(new TestTask(), out _) == null, "reachable alternative win
 NavGraph.Nodes = [];
 Check(agent.PlanReach(new TestTask(), out _) == "no nav node near it has a clear walk to it",
     "missing approach is distinct from missing route and stale door failure");
+Check(GoalProgressWindow.Evaluate(true, -6.57f) == 0, "logged target change does not count as lost progress");
+Check(GoalProgressWindow.Evaluate(true, .12f) == 0, "changed follow target rebases without adding stalled time");
+Check(GoalProgressWindow.Evaluate(true, 2f) == 0, "new nearer target does not erase a stall as false progress");
+Check(GoalProgressWindow.Evaluate(false, .12f) == -1, "unchanged goal with little progress still accumulates stall time");
+Check(GoalProgressWindow.Evaluate(false, .5f) == 1, "real progress toward unchanged target clears stall state");
+var backoff = new WanderTargetBackoff();
+Vector3 blockedGoal = new(5,1,0), origin = new(0,1,0);
+backoff.Remember(blockedGoal, origin, 10);
+Check(backoff.Contains(blockedGoal, origin, 11), "blocked wander target is deferred");
+Check(!backoff.Contains(new(6,1,0), origin, 11), "other wander destinations remain eligible");
+Check(!backoff.Contains(blockedGoal, origin, 40), "blocked destination is retried after expiry");
+Check(!backoff.Contains(blockedGoal, new(3,1,0), 11), "new approach location can retry destination");
 Console.WriteLine($"Passed {checks} approach-planning checks against production NpcAgent.Reach.cs.");
 
 sealed class TestTask() : ReachTask(new Vector3(10, .5f, 0), new Transform())

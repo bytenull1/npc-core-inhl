@@ -2,3 +2,4 @@
 NPC.Core.Agents.NpcAgent.LeaveDoors() -> int
 NPC.Core.Interaction.INpcCommandPage
 NPC.Core.Interaction.INpcCommandPage.KeepCommandsOpen.get -> bool
+NPC.Core.Agents.NpcHands.TurnWorld(UnityEngine.Quaternion worldRotation) -> void

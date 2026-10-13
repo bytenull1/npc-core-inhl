@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using NPC.Core.Agents;
 using NPC.Core.Interaction;
@@ -19,8 +20,15 @@ namespace NPC.Core
     /// one target disables only that feature (NpcCorePlugin.ApplyPatches). Each game method is patched
     /// here once for every NPC mod: docs/invariants.md#one-patch-per-game-hook
     /// </summary>
+    /// <remarks>
+    /// A patch method holds a guard and calls into NPC.Core, never a game member: a game update that removes
+    /// one then fails inside the guard. docs/invariants.md#mod-code-never-throws-into-the-game
+    /// </remarks>
     internal static class Patches
     {
+        private static void Failed(Exception ex, [CallerMemberName] string patch = "") =>
+            FailureLog.Report(patch, $"Patch {patch} - skipped, the game's method runs as if unpatched", ex);
+
         [HarmonyPatch, Description("the shared tick: nav-graph autosave, registry upkeep, body collision pairs, the airlocks, the trail outside, NpcEvents.Tick")]
         internal static class Tick
         {
@@ -30,6 +38,18 @@ namespace NPC.Core
             [HarmonyPatch(typeof(GameManager), "FixedUpdate")]
             [HarmonyPostfix]
             public static void GameManager_FixedUpdate_Postfix()
+            {
+                try
+                {
+                    Upkeep();
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void Upkeep()
             {
                 NpcRegistry.PruneDestroyed();
                 NavGraph.TickSave();
@@ -57,6 +77,18 @@ namespace NPC.Core
             [HarmonyPatch(typeof(GameManager), "Start")]
             [HarmonyPrefix]
             public static void GameManager_Start_Prefix()
+            {
+                try
+                {
+                    StartScene();
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void StartScene()
             {
                 SaveData? save = SceneLoader.Instance != null ? SceneLoader.Instance.SaveData : null;
                 ResetScene();
@@ -88,6 +120,18 @@ namespace NPC.Core
             [HarmonyPostfix]
             public static void SceneLoader_LoadGame_Postfix(string saveName)
             {
+                try
+                {
+                    Loaded(saveName);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void Loaded(string saveName)
+            {
                 NavProbe.InvalidateGates();
                 NpcMonster.ResetOverrides();
                 ResetScene();
@@ -116,7 +160,19 @@ namespace NPC.Core
             [HarmonyPostfix]
             public static void ConsoleMenu_Init_Postfix(ConsoleMenu __instance)
             {
-                if (__instance != null) NpcConsole.Attach(__instance);
+                try
+                {
+                    Attach(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void Attach(ConsoleMenu console)
+            {
+                if (console != null) NpcConsole.Attach(console);
             }
         }
 
@@ -133,38 +189,62 @@ namespace NPC.Core
             public static void EntryDetector_DoorCheckForEnter_Prefix(EntryDetector __instance, out Player? __state)
             {
                 __state = null;
+                try
+                {
+                    __state = HidePlayer(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
 
-                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(__instance);
-                if (gate == null || !NpcDoors.WasClosedByNpc(gate, out _)) return;
+            // The player hidden from the detector, to put back after the check; null when left alone.
+            private static Player? HidePlayer(EntryDetector detector)
+            {
+                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(detector);
+                if (gate == null || !NpcDoors.WasClosedByNpc(gate, out _)) return null;
 
-                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(__instance);
-                if (player == null || player.Controller == null) return;
+                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(detector);
+                if (player == null || player.Controller == null) return null;
 
                 // The player really is at this doorway: let the game do its normal thing.
-                if (NpcDoors.PlayerAtDoorway(player, gate)) return;
+                if (NpcDoors.PlayerAtDoorway(player, gate)) return null;
 
-                if (GameInternals.EntryDetectorAccess.SetCurrentPlayer(__instance, null)) __state = player;
+                return GameInternals.EntryDetectorAccess.SetCurrentPlayer(detector, null) ? player : null;
             }
 
             [HarmonyPatch(typeof(EntryDetector), "DoorCheckForEnter")]
             [HarmonyPostfix]
             public static void EntryDetector_DoorCheckForEnter_Postfix(EntryDetector __instance, Player? __state)
             {
-                if (__state != null) GameInternals.EntryDetectorAccess.SetCurrentPlayer(__instance, __state);
+                try
+                {
+                    DoorChecked(__instance, __state);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
 
-                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(__instance);
+            private static void DoorChecked(EntryDetector detector, Player? hidden)
+            {
+                if (hidden != null) GameInternals.EntryDetectorAccess.SetCurrentPlayer(detector, hidden);
+
+                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(detector);
                 if (gate == null || !NpcDoors.WasClosedByNpc(gate, out INpc? closer)) return;
 
                 // At the doorway the game has just switched rooms for the player. Anywhere else it switched
                 // nothing, so the closer puts back what it loaded: docs/invariants.md#npc-closes-must-not-move-the-player
-                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(__instance);
+                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(detector);
                 if (player != null && player.Controller != null && NpcDoors.PlayerAtDoorway(player, gate)) return;
 
                 // The closer's own side test decides; every other NPC keeps its room through TracksRoom.
                 if (closer is not INpcDoorUser user) return;
 
                 using NpcRegistry.ActingScope _ = NpcRegistry.Acting(closer);
-                user.OnDoorClosedAway(__instance);
+                user.OnDoorClosedAway(detector);
             }
 
             /// <summary>
@@ -173,8 +253,20 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(EntryDetector), "CheckItemParents")]
             [HarmonyPrefix]
-            public static void EntryDetector_CheckItemParents_Prefix(EntryDetector __instance) =>
-                NpcItemZones.Prune(GameInternals.EntryDetectorAccess.GetItemZone(__instance), __instance.gameObject.name);
+            public static void EntryDetector_CheckItemParents_Prefix(EntryDetector __instance)
+            {
+                try
+                {
+                    PruneItemZone(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void PruneItemZone(EntryDetector detector) =>
+                NpcItemZones.Prune(GameInternals.EntryDetectorAccess.GetItemZone(detector), detector.gameObject.name);
 
             /// <summary>
             /// A gate's AntiCrasher just undid a close, and nothing in the game will ever retry it. The NPC
@@ -184,13 +276,25 @@ namespace NPC.Core
             [HarmonyPostfix]
             public static void Gate_FailClose_Postfix(Gate __instance)
             {
+                try
+                {
+                    CloseFailed(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void CloseFailed(Gate gate)
+            {
                 // Each ignores a gate it is not standing in, so only the one in the way takes the close over.
                 foreach (INpc npc in NpcRegistry.Snapshot())
                 {
                     if (npc is not INpcDoorUser user || NpcRegistry.IsGone(npc)) continue;
 
                     using NpcRegistry.ActingScope _ = NpcRegistry.Acting(npc);
-                    user.OnCloseFailed(__instance);
+                    user.OnCloseFailed(gate);
                 }
             }
         }
@@ -204,8 +308,18 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(Room), nameof(Room.SetContentEnabled))]
             [HarmonyPrefix]
-            public static bool Room_SetContentEnabled_Prefix(Room __instance, bool state) =>
-                NpcRooms.AllowSwitch(__instance, state);
+            public static bool Room_SetContentEnabled_Prefix(Room __instance, bool state)
+            {
+                try
+                {
+                    return NpcRooms.AllowSwitch(__instance, state);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                    return true;
+                }
+            }
         }
 
         [HarmonyPatch, Description("every NPC mod's save sidecars")]
@@ -214,6 +328,18 @@ namespace NPC.Core
             [HarmonyPatch(typeof(SaveParser), "WriteSaveFile")]
             [HarmonyPostfix]
             public static void SaveParser_WriteSaveFile_Postfix(SaveData? save)
+            {
+                try
+                {
+                    WriteSidecars(save);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void WriteSidecars(SaveData? save)
             {
                 if (save != null) NpcSaves.WriteAll(save.fileName);
             }
@@ -224,14 +350,34 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(SaveParser), nameof(SaveParser.DeleteSaveFile))]
             [HarmonyPostfix]
-            public static void SaveParser_DeleteSaveFile_Postfix(string fileName) => NpcSaves.DeleteAll(fileName);
+            public static void SaveParser_DeleteSaveFile_Postfix(string fileName)
+            {
+                try
+                {
+                    NpcSaves.DeleteAll(fileName);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
 
             /// <summary>
             /// The bulk wipe. Scene-wired with no C# caller, like Gate.InvokeOpen.
             /// </summary>
             [HarmonyPatch(typeof(SaveParser), nameof(SaveParser.ClearSaveFiles))]
             [HarmonyPostfix]
-            public static void SaveParser_ClearSaveFiles_Postfix() => NpcSaves.ClearAll();
+            public static void SaveParser_ClearSaveFiles_Postfix()
+            {
+                try
+                {
+                    NpcSaves.ClearAll();
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
 
             /// <summary>
             /// Self-healing sweep for sidecars whose save vanished by some other route. Runs on menu open
@@ -239,7 +385,17 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(SaveParser), nameof(SaveParser.SyncSavePreviews))]
             [HarmonyPostfix]
-            public static void SaveParser_SyncSavePreviews_Postfix() => NpcSaves.PruneOrphans();
+            public static void SaveParser_SyncSavePreviews_Postfix()
+            {
+                try
+                {
+                    NpcSaves.PruneOrphans();
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
         }
 
         [HarmonyPatch, Description("the ai_notarget and ai_disable debug commands")]
@@ -251,7 +407,18 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(BreathlessController), "PlayerEntered")]
             [HarmonyPrefix]
-            public static bool BreathlessController_PlayerEntered_Prefix() => !NpcMonster.PlayerIgnored;
+            public static bool BreathlessController_PlayerEntered_Prefix()
+            {
+                try
+                {
+                    return !NpcMonster.PlayerIgnored;
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                    return true;
+                }
+            }
 
             /// <summary>
             /// The other half, and the one that actually kills. Both AI components grab and kill from an
@@ -261,11 +428,33 @@ namespace NPC.Core
             /// </summary>
             [HarmonyPatch(typeof(BreathlessController), "DetectItem")]
             [HarmonyPrefix]
-            public static bool BreathlessController_DetectItem_Prefix(GameObject detectedObject) => !IgnoredTarget(detectedObject);
+            public static bool BreathlessController_DetectItem_Prefix(GameObject detectedObject)
+            {
+                try
+                {
+                    return !IgnoredTarget(detectedObject);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                    return true;
+                }
+            }
 
             [HarmonyPatch(typeof(BreathlessAggressor), "DetectItem")]
             [HarmonyPrefix]
-            public static bool BreathlessAggressor_DetectItem_Prefix(GameObject detectedObject) => !IgnoredTarget(detectedObject);
+            public static bool BreathlessAggressor_DetectItem_Prefix(GameObject detectedObject)
+            {
+                try
+                {
+                    return !IgnoredTarget(detectedObject);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                    return true;
+                }
+            }
 
             private static bool IgnoredTarget(GameObject detectedObject) =>
                 NpcMonster.PlayerIgnored && detectedObject != null && detectedObject.GetComponent<Player>() != null;
@@ -276,12 +465,33 @@ namespace NPC.Core
         {
             [HarmonyPatch(typeof(LifecareDisplay), nameof(LifecareDisplay.UpdatePlayerIcon))]
             [HarmonyPrefix]
-            public static void LifecareDisplay_UpdatePlayerIcon_Prefix(ref bool enabled) => NpcLifecare.FixPlayerIcon(ref enabled);
+            public static void LifecareDisplay_UpdatePlayerIcon_Prefix(ref bool enabled)
+            {
+                bool asked = enabled;
+                try
+                {
+                    NpcLifecare.FixPlayerIcon(ref enabled);
+                }
+                catch (Exception ex)
+                {
+                    enabled = asked;
+                    Failed(ex);
+                }
+            }
 
             [HarmonyPatch(typeof(LifecareDisplay), "UpdateLifeformsCount")]
             [HarmonyPostfix]
-            public static void LifecareDisplay_UpdateLifeformsCount_Postfix(LifecareDisplay __instance) =>
-                NpcLifecare.RecountLifeforms(__instance);
+            public static void LifecareDisplay_UpdateLifeformsCount_Postfix(LifecareDisplay __instance)
+            {
+                try
+                {
+                    NpcLifecare.RecountLifeforms(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
         }
 
         [HarmonyPatch, Description("a hiding spot an NPC is inside")]
@@ -294,7 +504,20 @@ namespace NPC.Core
             [HarmonyPrefix]
             public static bool HidingSpot_Interact_Prefix(HidingSpot __instance)
             {
-                if (!NpcHiding.OccupiedByNpc(__instance)) return true;
+                try
+                {
+                    return MayMount(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                    return true;
+                }
+            }
+
+            private static bool MayMount(HidingSpot spot)
+            {
+                if (!NpcHiding.OccupiedByNpc(spot)) return true;
 
                 if (MessagePopUp.Instance != null) MessagePopUp.Instance.Show("Occupied");
 
@@ -315,20 +538,33 @@ namespace NPC.Core
             public static void Docker_Undock_Prefix(Docker __instance, out List<NpcAgent>? __state)
             {
                 __state = null;
-                if (__instance == null || !__instance.IsDocked) return;
+                try
+                {
+                    __state = InCollar(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
 
-                __state = [];
+            private static List<NpcAgent>? InCollar(Docker docker)
+            {
+                if (docker == null || !docker.IsDocked) return null;
+
+                List<NpcAgent> collar = [];
                 foreach (INpc npc in NpcRegistry.All)
                 {
                     if (NpcRegistry.IsGone(npc) || npc is not NpcAgent agent) continue;
 
                     if (agent.gameObject.activeInHierarchy &&
                         NavProbe.TryFloorCollider(agent.transform.position, out Collider? floor) && floor != null &&
-                        floor.GetComponentInParent<Docker>() == __instance)
+                        floor.GetComponentInParent<Docker>() == docker)
                     {
-                        __state.Add(agent);
+                        collar.Add(agent);
                     }
                 }
+                return collar;
             }
 
             /// <summary>
@@ -340,13 +576,25 @@ namespace NPC.Core
             [HarmonyPostfix]
             public static void Docker_Undock_Postfix(SpaceShip ship, List<NpcAgent>? __state)
             {
-                if (__state == null || ship == null || ship.Airlock == null) return;
+                try
+                {
+                    Undocked(ship, __state);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void Undocked(SpaceShip ship, List<NpcAgent>? collar)
+            {
+                if (collar == null || ship == null || ship.Airlock == null) return;
 
                 foreach (INpc npc in NpcRegistry.Snapshot())
                 {
                     if (NpcRegistry.IsGone(npc) || npc is not NpcAgent agent || agent.IsDead) continue;
 
-                    if (!__state.Contains(agent))
+                    if (!collar.Contains(agent))
                     {
                         if (!agent.gameObject.activeInHierarchy) continue;
 
@@ -386,8 +634,21 @@ namespace NPC.Core
                 out List<ShipRebuildState>? __state)
             {
                 __state = null;
+                try
+                {
+                    __state = AgentsAboard(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static List<ShipRebuildState>? AgentsAboard(StorymodeShipBuilder builder)
+            {
+                List<ShipRebuildState>? aboard = null;
                 SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
-                if (ship == null || __instance == null || __instance != ship.StorymodeShipBuilder) return;
+                if (ship == null || builder == null || builder != ship.StorymodeShipBuilder) return null;
 
                 int layoutBefore = NavGraph.ShipLayoutSignature();
                 foreach (INpc npc in NpcRegistry.All)
@@ -409,9 +670,10 @@ namespace NPC.Core
                             state.RoomAt = ship.transform.InverseTransformPoint(room.transform.position);
                         }
                     }
-                    __state ??= [];
-                    __state.Add(state);
+                    aboard ??= [];
+                    aboard.Add(state);
                 }
+                return aboard;
             }
 
             /// <summary>
@@ -422,12 +684,24 @@ namespace NPC.Core
             [HarmonyPostfix]
             public static void StorymodeShipBuilder_SetShipLevel_Postfix(byte level, List<ShipRebuildState>? __state)
             {
-                if (__state == null) return;
+                try
+                {
+                    Rebuilt(level, __state);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void Rebuilt(byte level, List<ShipRebuildState>? aboard)
+            {
+                if (aboard == null) return;
 
                 SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
                 if (ship == null) return;
 
-                if (NavGraph.ShipLayoutSignature() == __state[0].LayoutBefore)
+                if (NavGraph.ShipLayoutSignature() == aboard[0].LayoutBefore)
                 {
                     if (NpcLog.Level >= 1)
                     {
@@ -436,7 +710,7 @@ namespace NPC.Core
                     return;
                 }
 
-                foreach (ShipRebuildState state in __state)
+                foreach (ShipRebuildState state in aboard)
                 {
                     if (state.Agent == null || state.Agent.IsDead) continue;
 
@@ -481,11 +755,23 @@ namespace NPC.Core
             [HarmonyPrefix]
             public static void SpaceShip_SetContentEnabled_Prefix(SpaceShip __instance, bool value)
             {
+                try
+                {
+                    ParkOrWake(__instance, value);
+                }
+                catch (Exception ex)
+                {
+                    Failed(ex);
+                }
+            }
+
+            private static void ParkOrWake(SpaceShip ship, bool value)
+            {
                 GameManager gm = GameManager.Instance;
-                if (gm == null || __instance != gm.PlayerShip) return;
+                if (gm == null || ship != gm.PlayerShip) return;
 
                 // Docked, the Autopilot trigger unloads nothing, so agents aboard stay awake.
-                if (!value && !string.IsNullOrEmpty(__instance.Autopilot.DockedStation))
+                if (!value && !string.IsNullOrEmpty(ship.Autopilot.DockedStation))
                 {
                     if (NpcLog.Level >= 1) NpcLog.Log.LogInfo("[ai] Player ship unloaded while docked - agents aboard stay awake");
                     return;

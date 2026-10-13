@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using UnityEngine;
 
 namespace NPC.Core
 {
@@ -32,14 +30,6 @@ namespace NPC.Core
         /// </summary>
         public static event Action? WorldReset;
 
-        private const float RepeatLogSeconds = 60f;
-        private sealed class Failure
-        {
-            public int Count;
-            public float LoggedAt;
-        }
-        private static readonly Dictionary<Delegate, Failure> Failures = [];
-
         internal static void RaiseTick() => Raise(Tick, "Tick", handler => ((Action)handler)());
 
         internal static void RaiseGameStarting(bool newGame) =>
@@ -51,8 +41,8 @@ namespace NPC.Core
         internal static void RaiseWorldReset() => Raise(WorldReset, "WorldReset", handler => ((Action)handler)());
 
         /// <summary>
-        /// Each handler on its own: one mod's exception must not starve the next mod's handler. The first
-        /// failure is logged in full, a repeat once a minute with its count.
+        /// Each handler on its own: one mod's exception must not starve the next mod's handler.
+        /// docs/invariants.md#mod-code-never-throws-into-the-game
         /// </summary>
         private static void Raise(Delegate? multicast, string name, Action<Delegate> invoke)
         {
@@ -66,27 +56,9 @@ namespace NPC.Core
                 }
                 catch (Exception ex)
                 {
-                    LogFailure(handler, name, ex);
+                    FailureLog.Report(handler, $"{name} handler {handler.Method.DeclaringType?.FullName}.{handler.Method.Name}", ex);
                 }
             }
-        }
-
-        private static void LogFailure(Delegate handler, string name, Exception ex)
-        {
-            if (!Failures.TryGetValue(handler, out Failure? failure)) Failures[handler] = failure = new Failure();
-
-            failure.Count++;
-            string who = handler.Method.DeclaringType?.FullName + "." + handler.Method.Name;
-            if (failure.Count == 1)
-            {
-                NpcLog.Core.LogError($"[mod] {name} handler {who} failed: {ex}");
-                failure.LoggedAt = Time.time;
-                return;
-            }
-            if (Time.time - failure.LoggedAt < RepeatLogSeconds) return;
-
-            failure.LoggedAt = Time.time;
-            NpcLog.Core.LogError($"[mod] {name} handler {who} still failing ({failure.Count} times): {ex.Message}");
         }
     }
 }

@@ -1171,6 +1171,20 @@ and restores it in a postfix, break each other depending on load order.
 
 **Enforced in.** `NPC.Core.Patches`, `NpcCorePlugin.ApplyPatches`, `NpcEvents`.
 
+### mod-code-never-throws-into-the-game
+
+**Rule.** Mod code the game calls into - a Harmony patch, an `NpcEvents` handler - catches every exception.
+`FailureLog` logs the first in full, then a repeat once a minute with its count. A failed prefix lets the
+game's method run; a failed postfix skips only its own work. A patch method holds the guard and calls into
+NPC.Core; it names no game member itself.
+
+**Why.** An exception in a patch lands in the game's method: a prefix that throws skips it, a postfix that
+throws aborts its caller (a save, a room load, an undock). Mono compiles a method on its first call, so a
+member a game update removed fails where that method is called: inside the guard only when the work is a
+separate method. Unity already isolates its own callbacks (`Update`, `OnGUI`) per component.
+
+**Enforced in.** `Patches`, `NpcEvents.Raise`, `FailureLog`.
+
 ### npc-code-runs-acting
 
 **Rule.** Every entry into an NPC's code - a Unity message, a game event, a patch, a command - opens

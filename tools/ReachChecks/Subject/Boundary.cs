@@ -20,7 +20,7 @@ namespace UnityEngine
     public sealed class Transform { public Vector3 position = Vector3.zero; }
     public sealed class Collider { public string name = ""; }
     public static class Mathf { public static float Sqrt(float n) => MathF.Sqrt(n); }
-    public static class Time { public static float time => 0; }
+    public static class Time { public static float time; }
 }
 namespace NPC.Core.Navigation
 {
@@ -38,13 +38,14 @@ namespace NPC.Core.Navigation
         public static bool LastPathBlockedByDoor;
         public static readonly HashSet<float> BlockedByDoor = [];
         public static readonly HashSet<float> Outdoor = [];
+        public static readonly Dictionary<float, float> Floors = [];
         public static readonly Dictionary<float, Vector3[]?> Paths = [];
         public readonly struct ActiveNode(int id, Vector3 world)
         {
             public readonly Vector3 World = world;
             public int Id => id;
             public NodeType Type => Outdoor.Contains(World.x) ? NodeType.Outdoor : NodeType.Ground;
-            public float FloorY => 0;
+            public float FloorY => Floors.TryGetValue(World.x, out float floor) ? floor : 0;
         }
         public static void CollectActiveNodes(List<ActiveNode> nodes)
         {
@@ -60,10 +61,13 @@ namespace NPC.Core.Navigation
     }
     public static class NavProbe
     {
-        public static bool WalkLos(Vector3 from, Vector3 to, float tolerance) => true;
+        // Which straight walks and sight lines are clear; every one is by default.
+        public static Func<Vector3, Vector3, bool> Walk = (from, to) => true;
+        public static Func<Vector3, Vector3, bool> Sight = (eye, target) => true;
+        public static bool WalkLos(Vector3 from, Vector3 to, float tolerance) => Walk(from, to);
         public static Collider? SightBlocker;
         public static float SightBlockY;
-        public static bool CanSee(Vector3 from, Vector3 to, Transform? own, out Gate? shut) { shut = null; return true; }
+        public static bool CanSee(Vector3 from, Vector3 to, Transform? own, out Gate? shut) { shut = null; return Sight(from, to); }
     }
 }
 public sealed class Gate { public string name = ""; }
@@ -72,7 +76,8 @@ namespace NPC.Core.World
     public static class SellPens
     {
         public const float SellStationClearance = 1;
-        public static bool InAFencedPen(UnityEngine.Vector3 point, object? ignored, float clearance) => false;
+        public static Func<UnityEngine.Vector3, bool> Pen = point => false;
+        public static bool InAFencedPen(UnityEngine.Vector3 point, object? ignored, float clearance) => Pen(point);
     }
 }
 namespace NPC.Core.Agents
@@ -87,16 +92,31 @@ namespace NPC.Core.Agents
         private Vector3 currentMoveTarget;
         private bool hasMoveTarget;
         private readonly Brain brain = new();
+        public Brain Mind => brain;
+        public int Commits;
+        public bool LastCommitFresh;
         public Vector3 CurrentTarget => hasMoveTarget ? currentMoveTarget : Vector3.zero;
         public float WalkSpeed => 3.5f;
         private Vector3 FloorUnderNpc() => transform.position;
-        private void CommitPlan(NavPath plan, bool fresh) { }
+        private void CommitPlan(NavPath plan, bool fresh)
+        {
+            Commits++;
+            LastCommitFresh = fresh;
+        }
     }
-    public sealed class Brain { public void OnWalkAbandoned(string why) { } }
+    public sealed class Brain
+    {
+        public string? Abandoned;
+        public void OnWalkAbandoned(string why) => Abandoned = why;
+    }
     public static class NpcLog
     {
         public static int Level => 2;
         public static readonly Logger Log = new();
-        public sealed class Logger { public void LogInfo(string message) { } }
+        public sealed class Logger
+        {
+            public string? Last;
+            public void LogInfo(string message) => Last = message;
+        }
     }
 }

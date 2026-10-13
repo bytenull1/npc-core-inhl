@@ -1244,6 +1244,16 @@ namespace NPC.Core.Navigation
             private readonly Dictionary<string, bool> active = [];
             private readonly Dictionary<string, CustomRoom?> rooms = [];
 
+            /// <summary>
+            /// Forgets everything, for a snapshot reused across calls.
+            /// </summary>
+            public void Clear()
+            {
+                transforms.Clear();
+                active.Clear();
+                rooms.Clear();
+            }
+
             private Transform? TransformOf(string owner)
             {
                 if (!transforms.TryGetValue(owner, out Transform? ownerT))
@@ -1754,6 +1764,7 @@ namespace NPC.Core.Navigation
         private static readonly StringBuilder RejectTrace = new();
         private static bool _inFindPath;
         private static bool _reentryWarned;
+        private static readonly OwnerSnapshot NodeAtOwners = new();
 
         /// <summary>
         /// "How near is this node to the goal", for the finish and the approach.
@@ -1846,7 +1857,9 @@ namespace NPC.Core.Navigation
         /// </summary>
         private static Node? NodeAt(Vector3 worldPos)
         {
-            OwnerSnapshot owners = new();
+            // Called per waypoint check, so one snapshot is reused, cleared per call. NodeAt never nests.
+            OwnerSnapshot owners = NodeAtOwners;
+            owners.Clear();
             Node? best = null;
             float bestDistanceSquared = 0.25f;
             foreach (Node n in Nodes)

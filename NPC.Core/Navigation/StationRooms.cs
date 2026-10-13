@@ -17,7 +17,10 @@ namespace NPC.Core.Navigation
         /// </summary>
         public sealed record Entry(string Name, string[] Keys, int[] Nodes);
 
-        private const float CacheSeconds = 3f;
+        // A station's rooms do not move, so the list is rebuilt when the docked station or the node
+        // count changes. These only catch moved furniture, and nodes moved in the open editor.
+        private const float CacheSeconds = 60f;
+        private const float EditorCacheSeconds = 3f;
         private const int MinShortKey = 3;
         private static readonly HashSet<string> FillerWords =
             ["goto", "go", "to", "walk", "move", "the", "room", "please", "now", "into", "in"];
@@ -25,6 +28,8 @@ namespace NPC.Core.Navigation
         private static Entry[] _entries = [];
         private static string _station = "";
         private static float _builtAt = float.NegativeInfinity;
+        private static Room[]? _builtFor;
+        private static int _builtNodeCount = -1;
         private static string _lastLogged = "";
 
         /// <summary>
@@ -32,20 +37,26 @@ namespace NPC.Core.Navigation
         /// </summary>
         public static Entry[] Current(out string station)
         {
-            if (Time.unscaledTime >= _builtAt + CacheSeconds)
+            bool docked = NavGraph.TryDockedStation(out string owner, out Room[]? rooms);
+            int nodeCount = NavGraph.NodeCount;
+            float ttl = NpcCorePlugin.NodeEditor is { Active: true } ? EditorCacheSeconds : CacheSeconds;
+            if (!ReferenceEquals(rooms, _builtFor) || nodeCount != _builtNodeCount ||
+                Time.unscaledTime >= _builtAt + ttl)
             {
                 _builtAt = Time.unscaledTime;
-                Rebuild();
+                _builtFor = rooms;
+                _builtNodeCount = nodeCount;
+                Rebuild(docked, owner, rooms);
             }
             station = _station;
             return _entries;
         }
 
-        private static void Rebuild()
+        private static void Rebuild(bool docked, string owner, Room[]? rooms)
         {
             _entries = [];
             _station = "";
-            if (!NavGraph.TryDockedStation(out string owner, out Room[]? rooms)) return;
+            if (!docked || rooms == null) return;
 
             List<(int Index, Vector3 World)> nodes = NavGraph.WorldNodesOf(owner);
             List<Room> listed = [];

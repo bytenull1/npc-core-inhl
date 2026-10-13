@@ -269,6 +269,7 @@ the stand points tried in front of it, how far and how high it is used from, whe
    no path, and a door the NPC cannot open; a door failure is retained across candidate searches.
    At debug level 2 a "no clear approach" failure logs `[ai] No reach node for` with how many nodes
    and stand points each check turned down, and each check's verdict at the three nearest nodes.
+   A sight verdict names the collider it hit and the hit's height, or the shut gate.
 3. `StepIntoReach` walks straight on to the stand point, then the target, until `InReach`. A plan
    that ran out more than `ReachNodeArrival` short of the node is planned again, `ReachMaxReplans`
    times. Within `ReachStandArrival` of the stand point the last step is at the target. After

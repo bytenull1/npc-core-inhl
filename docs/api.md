@@ -67,7 +67,8 @@ every NPC mod shares ([logging.md](logging.md)).
 console; `NpcConsole.Toggle(args, index, current)` reads an on/off argument; `NpcConsole.Alias` keeps an
 old name; `NpcConsole.IsOpen` tells overlays and hotkeys to step aside ([one-owner-per-console-command](invariants.md#one-owner-per-console-command)).
 
-`SceneScan.MayRescan` and `SceneScan.ThisFrame<T>()` budget whole-scene sweeps for every mod at once
+`SceneScan.MayRescan` and `SceneScan.ThisFrame<T>()` budget whole-scene sweeps for every mod at once:
+one timed rescan per frame, none inside a path search
 ([scene-sweeps-are-budgeted](invariants.md#scene-sweeps-are-budgeted)).
 
 `NpcEvents` raises the game's moments from NPC.Core's own patches, so no mod patches these methods

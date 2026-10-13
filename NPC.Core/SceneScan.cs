@@ -16,16 +16,18 @@ namespace NPC.Core
         private static int _rescans;
         private static int _deferred;
         private static int _inSearch;
+        private static int _prefetched;
         private static float _windowStart = -1f;
 
         /// <summary>
-        /// May a TTL cache whose time is up sweep the scene now? One rescan per frame; the rest keep
-        /// their list and ask again on their next access. `mustScan`: nothing to serve, or forced.
+        /// May a TTL cache whose time is up sweep the scene now? One rescan per frame and none inside a
+        /// path search; the rest keep their list and ask again on their next access. `mustScan`: nothing
+        /// to serve, or forced.
         /// </summary>
         public static bool MayRescan(bool mustScan)
         {
             int frame = Time.frameCount;
-            if (!mustScan && _rescanFrame == frame)
+            if (!mustScan && (_rescanFrame == frame || NavGraph.InSearch))
             {
                 _deferred++;
                 return false;
@@ -47,14 +49,21 @@ namespace NPC.Core
 
             if (NpcLog.Level >= 2)
             {
-                NpcLog.Log.LogInfo($"[probe] Scene rescans: {_rescans} in the last {Time.time - _windowStart:0} s, " +
-                                   $"{_deferred} put off to a later frame, {_inSearch} inside a path search");
+                NpcLog.Log.LogInfo($"[probe] Scene rescans: {_rescans} in the last {Time.time - _windowStart:0} s " +
+                                   $"({_prefetched} by the door prefetch), {_deferred} put off to a later frame, " +
+                                   $"{_inSearch} inside a path search");
             }
             _windowStart = Time.time;
             _rescans = 0;
             _deferred = 0;
             _inSearch = 0;
+            _prefetched = 0;
         }
+
+        /// <summary>
+        /// NpcDoors.Prefetch swept on this frame, for the summary.
+        /// </summary>
+        internal static void CountPrefetch() => _prefetched++;
 
         /// <summary>
         /// A sweep already landed on this frame, budgeted or per-frame. A prefetch waits for a frame without one.

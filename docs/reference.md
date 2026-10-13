@@ -198,7 +198,7 @@ See [doors.md](doors.md).
 | `NpcCloseWindow` | 6 s | how long a close stays an NPC's: `Gate.OnClosed` fires at the end of the animation |
 | `SceneCacheTtl` | 5 s | doorway sensors, airlocks, pin panels |
 | `ImpassableGatesTtl` | 1 s | the gates routing avoids; lock and open state change in play |
-| `PrefetchLead` | 0.25 s | how far ahead of its TTL `Prefetch` refreshes a door cache, off path-search frames |
+| `PrefetchLead` | 0.25 s | how far ahead of its TTL `Prefetch` refreshes a door cache read since its last fill, off path-search frames |
 | `DoorBroadPhaseRadius` | 3 m | a gate further than this from a route stretch is not tested |
 | `DoorBlockPadding` | 0.3 m | body clearance around a blocking gate's volume |
 | `ChamberFallbackRadius`, `ChamberFallbackHeight` | 1.5 m, 2 m | an airlock's chamber when its `PlayerDetector` volume cannot be read ([an-airlock-is-crossed-by-its-cycle](invariants.md#an-airlock-is-crossed-by-its-cycle)) |

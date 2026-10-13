@@ -69,6 +69,12 @@ namespace NPC.Core.World
         private static float _passwordGatesRefreshAt;
         private static readonly List<Gate> ImpassableGates = [];
         private static float _impassableGatesRefreshAt;
+        // Read since the last fill: Prefetch refreshes only these. docs/invariants.md#scene-sweeps-are-budgeted
+        private static bool _detectorsRead, _airlocksRead, _passwordGatesRead, _impassableGatesRead;
+        // Sweeps of the caches ImpassableGates is built from, as of its last build.
+        private static int _airlockAndPinFills;
+        private static int _impassableBuiltFrom = -1;
+        private static int ImpassableInputs => NavProbe.GatesVersion + DetectorsVersion + _airlockAndPinFills;
 
         // Door codes the player told any NPC; every NPC knows them all. docs/invariants.md#an-npc-only-knows-codes-it-was-told
         private static readonly HashSet<int> CodeSet = [];
@@ -160,12 +166,15 @@ namespace NPC.Core.World
 
         private static void RefreshDetectors(float lead = 0f)
         {
+            if (lead == 0f) _detectorsRead = true;
+            else if (!_detectorsRead) return;
             if (_detectors != null && Time.time + lead < _detectorsRefreshAt) return;
             if (!SceneScan.MayRescan(_detectors == null)) return;
 
             // Switched-off detectors too: a sealed room's doors have one. docs/invariants.md#an-npc-opens-only-what-the-player-could
             _detectors = [];
             _detectorsRefreshAt = Time.time + SceneCacheTtl;
+            _detectorsRead = lead == 0f;
 
             DetectorsByGate.Clear();
             foreach (EntryDetector detector in Object.FindObjectsOfType<EntryDetector>(true))
@@ -291,9 +300,15 @@ namespace NPC.Core.World
         /// </summary>
         private static void RefreshImpassableGates(float lead = 0f)
         {
-            if (Time.time + lead < _impassableGatesRefreshAt) return;
+            if (lead == 0f) _impassableGatesRead = true;
+            else if (!_impassableGatesRead) return;
+            // Also rebuilt after an input was swept: inside a path search the inputs may have been served stale.
+            if (Time.time + lead < _impassableGatesRefreshAt && _impassableBuiltFrom == ImpassableInputs) return;
 
             _impassableGatesRefreshAt = Time.time + ImpassableGatesTtl;
+            _impassableGatesRead = lead == 0f;
+            // Taken before the loop: an input swept during it rebuilds the list on the next read.
+            _impassableBuiltFrom = ImpassableInputs;
             ImpassableGates.Clear();
             foreach (Gate gate in NavProbe.Gates)
             {
@@ -302,19 +317,22 @@ namespace NPC.Core.World
         }
 
         /// <summary>
-        /// Refreshes the caches routing reads a little before they expire, on a frame with no path search,
-        /// at most one sweep per frame. The refresh on read stays the fallback. docs/invariants.md#scene-sweeps-are-budgeted
+        /// Refreshes the caches routing reads a little before they expire, if read since their last fill,
+        /// on a frame with no path search, at most one sweep per frame. The refresh on read stays the
+        /// fallback. docs/invariants.md#scene-sweeps-are-budgeted
         /// </summary>
         internal static void Prefetch()
         {
             if (NavGraph.SearchedThisFrame) return;
 
+            bool quiet = !SceneScan.SweptThisFrame;
             if (!SceneScan.SweptThisFrame) NavProbe.EnsureGates(PrefetchLead);
             if (!SceneScan.SweptThisFrame) RefreshDetectors(PrefetchLead);
             if (!SceneScan.SweptThisFrame) RefreshAirlocks(PrefetchLead);
             if (!SceneScan.SweptThisFrame) RefreshPasswordGates(PrefetchLead);
             // Reads lock and open state; never older than ImpassableGatesTtl, now only refreshed sooner.
             RefreshImpassableGates(PrefetchLead);
+            if (quiet && SceneScan.SweptThisFrame) SceneScan.CountPrefetch();
         }
 
         /// <summary>
@@ -524,11 +542,15 @@ namespace NPC.Core.World
 
         private static void RefreshAirlocks(float lead = 0f)
         {
+            if (lead == 0f) _airlocksRead = true;
+            else if (!_airlocksRead) return;
             if (_airlocks != null && Time.time + lead < _airlocksRefreshAt) return;
             if (!SceneScan.MayRescan(_airlocks == null)) return;
 
             _airlocks = [.. Object.FindObjectsOfType<Airlock>()];
             _airlocksRefreshAt = Time.time + SceneCacheTtl;
+            _airlocksRead = lead == 0f;
+            _airlockAndPinFills++;
         }
 
         // ------------------------------------------------------------------
@@ -552,6 +574,8 @@ namespace NPC.Core.World
 
         private static void RefreshPasswordGates(float lead = 0f)
         {
+            if (lead == 0f) _passwordGatesRead = true;
+            else if (!_passwordGatesRead) return;
             if (Time.time + lead < _passwordGatesRefreshAt || !SceneScan.MayRescan(_passwordGatesRefreshAt <= 0f)) return;
 
             PasswordGates.Clear();
@@ -561,6 +585,8 @@ namespace NPC.Core.World
                 if (wired != null) PasswordGates[wired] = pin;
             }
             _passwordGatesRefreshAt = Time.time + SceneCacheTtl;
+            _passwordGatesRead = lead == 0f;
+            _airlockAndPinFills++;
         }
 
         /// <summary>

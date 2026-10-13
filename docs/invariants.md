@@ -1271,15 +1271,18 @@ largest allocation after the HUD. `SpaceShip.rooms` is a fixed array, so its ref
 
 ### scene-sweeps-are-budgeted
 
-**Rule.** A cache that re-runs `FindObjectsOfType` on a timer asks `SceneScan.MayRescan` first. A
-sweep made for one decision reads `SceneScan.ThisFrame`. Only a first fill or a forced rescan
-(`InvalidateGates`, a destroyed entry) skips the budget. The caches routing reads are refreshed
-`PrefetchLead` before they expire, on a frame with no path search and no other sweep; the refresh on
-read stays the fallback.
+**Rule.** A cache that re-runs `FindObjectsOfType` on a timer asks `SceneScan.MayRescan` first: one
+rescan per frame, none inside a path search. A sweep made for one decision reads `SceneScan.ThisFrame`.
+Only a first fill or a forced rescan (`InvalidateGates`, a destroyed entry) skips the budget. The
+caches routing reads are refreshed `PrefetchLead` before they expire if something read them since
+their last fill, on a frame with no path search and no other sweep; the refresh on read stays the
+fallback. `ImpassableGates` is rebuilt after any of its inputs is swept.
 
 **Why.** Each sweep costs milliseconds. Expired 5 s caches could all rescan inside one `FindPath`
 call, and an errand's `Count` and `TryStart` swept the scene twice in one frame. Both landed on the
-mod's slowest frames.
+mod's slowest frames. Prefetching unread caches on a timer added sweeps nobody used. A dock or scene
+change forces the gate rescan, so a list served stale inside a search only misses rooms switched on
+or off since its last sweep.
 
 **Enforced in.** `SceneScan`; `NavProbe.EnsureGates`, `NavGraph.RefreshSpaceObjects`,
 `NpcDoors.RefreshDetectors` / `RefreshAirlocks` / `RefreshPasswordGates` / `Prefetch`, `SellPens.EnsurePens`;

@@ -205,6 +205,11 @@ namespace NPC.Core.Navigation
         private static float _gatesRefreshAt;
         // Set until the first scan and by InvalidateGates: that rescan may not wait for the budget.
         private static bool _gatesForced = true;
+        private static bool _gatesRead;
+        /// <summary>
+        /// Counts the gate sweeps, so a list derived from them knows when to rebuild.
+        /// </summary>
+        internal static int GatesVersion { get; private set; }
         /// <summary>
         /// The gate set as the probes need it, placed for one frame. A gate root moves with
         /// the world while the ship flies, so this never outlives the frame that built it:
@@ -255,11 +260,16 @@ namespace NPC.Core.Navigation
         /// </summary>
         internal static void EnsureGates(float lead = 0f)
         {
+            // Prefetch refreshes only a list read since its last fill.
+            if (lead == 0f) _gatesRead = true;
+            else if (!_gatesRead) return;
             if (Time.time + lead < _gatesRefreshAt || !SceneScan.MayRescan(_gatesForced)) return;
             // Stamped before the measuring loop: anything below that probed would
             // otherwise re-enter this method forever.
             _gatesRefreshAt = Time.time + 5f;
             _gatesForced = false;
+            _gatesRead = lead == 0f;
+            GatesVersion++;
             _frameGatesAt = -1;
             CachedGates.Clear();
             GateLocalBounds.Clear();
@@ -1319,6 +1329,7 @@ namespace NPC.Core.Navigation
                 if (!SegmentCrossesGate(gate, from, to, 0f)) continue;
 
                 shutGate = gate;
+                SightBlocker = null;
                 return false;
             }
 
@@ -1334,10 +1345,19 @@ namespace NPC.Core.Navigation
                 // Frame trim in a fully open doorway is not a wall - the whiskers' carve-out.
                 if (IsDoorGeometryNearOpenGate(c, ContactPoint(LosHits[i], from))) continue;
 
+                SightBlocker = c;
+                SightBlockY = ContactPoint(LosHits[i], from).y;
                 return false;
             }
             return true;
         }
+
+        /// <summary>
+        /// One collider that failed the last CanSee (not always the nearest), or null when a shut gate did.
+        /// For level-2 traces only.
+        /// </summary>
+        internal static Collider? SightBlocker;
+        internal static float SightBlockY;
 
         /// <summary>
         /// Distance from a point to the straight segment a-b, in 3D.

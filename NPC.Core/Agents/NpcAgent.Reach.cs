@@ -75,6 +75,14 @@ namespace NPC.Core.Agents
             if (NpcLog.Level >= 2 && Misses.Nodes <= ReachTraceNodes) NearestMisses.Append(' ').Append(verdict);
         }
 
+        // "sight(ShelfCorner (7) y0,47)": what CanSee hit, and where.
+        private static string SightMiss(Gate? shut)
+        {
+            if (shut != null) return $"sight(gate {shut.name})";
+            Collider? blocker = NavProbe.SightBlocker;
+            return blocker == null ? "sight" : $"sight({blocker.name} y{NavProbe.SightBlockY:0.00})";
+        }
+
         private static bool FindReachNode(ReachTask task, System.Func<Vector3, bool>? reachable)
         {
             Misses = default;
@@ -141,10 +149,10 @@ namespace NPC.Core.Agents
                     }
 
                     Vector3 eye = new(stand.x, nodeFloor + ReachEyeHeight, stand.z);
-                    if (!NavProbe.CanSee(eye, targetPos, task.Own, out _))
+                    if (!NavProbe.CanSee(eye, targetPos, task.Own, out Gate? shut))
                     {
                         Misses.NoSight++;
-                        TraceMiss("sight");
+                        if (NpcLog.Level >= 2 && Misses.Nodes <= ReachTraceNodes) TraceMiss(SightMiss(shut));
                         continue;
                     }
                     if (reachable != null && !reachable(node)) break;

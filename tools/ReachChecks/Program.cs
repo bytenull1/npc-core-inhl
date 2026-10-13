@@ -39,6 +39,11 @@ Check(agent.PlanReach(new TestTask(), out _) == "a door I cannot open is in the 
     "door failure survives later unsuccessful searches");
 NavGraph.Paths[7] = [new(7, 1, 0)];
 Check(agent.PlanReach(new TestTask(), out _) == null, "reachable alternative wins over earlier door failure");
+NavGraph.Nodes = [new(9, 1, 0), new(7, 1, 0)];
+NavGraph.Paths[9] = [new(9, 1, 0)];
+NavGraph.Outdoor.Add(9);
+Check(agent.PlanReach(new TestTask(), out plan) == null && plan[0].x == 7, "an outdoor node is not a stand point for an indoor errand");
+NavGraph.Outdoor.Clear();
 NavGraph.Nodes = [];
 Check(agent.PlanReach(new TestTask(), out _) == "no nav node near it has a clear walk to it",
     "missing approach is distinct from missing route and stale door failure");

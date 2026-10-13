@@ -18,6 +18,7 @@ namespace UnityEngine
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
     }
     public sealed class Transform { public Vector3 position = Vector3.zero; }
+    public sealed class Collider { public string name = ""; }
     public static class Mathf { public static float Sqrt(float n) => MathF.Sqrt(n); }
     public static class Time { public static float time => 0; }
 }
@@ -36,10 +37,20 @@ namespace NPC.Core.Navigation
         public static int Searches;
         public static bool LastPathBlockedByDoor;
         public static readonly HashSet<float> BlockedByDoor = [];
+        public static readonly HashSet<float> Outdoor = [];
         public static readonly Dictionary<float, Vector3[]?> Paths = [];
-        public static void CollectActiveNodes(List<Vector3> nodes) { nodes.Clear(); nodes.AddRange(Nodes); }
-        public static NodeType TypeAt(Vector3 point) => NodeType.Ground;
-        public static float FloorAt(Vector3 point) => 0;
+        public readonly struct ActiveNode(int id, Vector3 world)
+        {
+            public readonly Vector3 World = world;
+            public int Id => id;
+            public NodeType Type => Outdoor.Contains(World.x) ? NodeType.Outdoor : NodeType.Ground;
+            public float FloorY => 0;
+        }
+        public static void CollectActiveNodes(List<ActiveNode> nodes)
+        {
+            nodes.Clear();
+            for (int i = 0; i < Nodes.Length; i++) nodes.Add(new ActiveNode(i, Nodes[i]));
+        }
         public static NavPath? FindPath(Vector3 from, Vector3 to, bool mayGoOutside)
         {
             Searches++;
@@ -50,9 +61,12 @@ namespace NPC.Core.Navigation
     public static class NavProbe
     {
         public static bool WalkLos(Vector3 from, Vector3 to, float tolerance) => true;
-        public static bool CanSee(Vector3 from, Vector3 to, Transform own, out string why) { why = ""; return true; }
+        public static Collider? SightBlocker;
+        public static float SightBlockY;
+        public static bool CanSee(Vector3 from, Vector3 to, Transform? own, out Gate? shut) { shut = null; return true; }
     }
 }
+public sealed class Gate { public string name = ""; }
 namespace NPC.Core.World
 {
     public static class SellPens
@@ -67,7 +81,7 @@ namespace NPC.Core.Agents
     using NPC.Core.Navigation;
     public sealed partial class NpcAgent
     {
-        private static readonly List<Vector3> ReachNodeBuffer = [];
+        private static readonly List<NavGraph.ActiveNode> ReachNodeBuffer = [];
         private const float FollowSameLevelDeltaY = .5f, ReachNodeArrival = 1.2f, ReachStandArrival = .3f;
         public readonly Transform transform = new();
         private Vector3 currentMoveTarget;
@@ -81,6 +95,7 @@ namespace NPC.Core.Agents
     public sealed class Brain { public void OnWalkAbandoned(string why) { } }
     public static class NpcLog
     {
+        public static int Level => 2;
         public static readonly Logger Log = new();
         public sealed class Logger { public void LogInfo(string message) { } }
     }

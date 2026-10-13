@@ -2,6 +2,7 @@ name: checks
 
 # The library itself is not built here: it compiles against the game's own assemblies,
 # which can't be redistributed (NPC.Core/lib/README.md). Build Debug and Release locally.
+# The check harnesses in tools/ link production files with stubs, so they need no game assemblies.
 
 on:
   push:
@@ -30,3 +31,8 @@ jobs:
           else
             python tools/bundle_nodegraph.py --check
           fi
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Check harnesses
+        run: dotnet run --project tools/ReachChecks/ReachChecks.csproj -c Release

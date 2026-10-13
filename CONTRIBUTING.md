@@ -40,7 +40,9 @@ The decompile and exports are the game developer's work and must never be commit
 
 - **Keep changes small** and focused on one problem.
 - **Build clean.** Debug and Release must both build; every warning is an error.
-- **Run the checks** CI runs: `python tools/doccheck.py` and `python tools/bundle_nodegraph.py --check`.
+- **Run the checks** CI runs: `python tools/doccheck.py`, `python tools/bundle_nodegraph.py --check` and
+  `dotnet run --project tools/ReachChecks/ReachChecks.csproj -c Release` (reach planning against stubs;
+  when `NpcAgent.Reach.cs` gains a dependency, add it to `tools/ReachChecks/Boundary.cs`).
 - **Mind the public API.** Mods compile against it ([docs/api.md](docs/api.md)); a changed signature
   breaks them. The build lists every public member in `NPC.Core/PublicAPI.*.txt`
   ([api.md §9](docs/api.md#9-changing-the-api)). Rebuild YourBuddy against your change before you open

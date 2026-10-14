@@ -916,6 +916,8 @@ One `Room.SetContentEnabled` prefix asks every keeper; a walker releasing rooms 
 
 **Why.** A mod may need rooms loaded that no NPC stands in, and a prefix that refuses a call is
 exactly what two mods must not each add ([one-patch-per-game-hook](#one-patch-per-game-hook)).
+A keeper that throws counts as no reason, and a failed check lets the switch-off happen: refusing
+would keep every room loaded and save it so.
 
 **Enforced in.** `Patches.KeptRooms`, `NpcRooms.AllowSwitch` / `ReasonToKeep`.
 

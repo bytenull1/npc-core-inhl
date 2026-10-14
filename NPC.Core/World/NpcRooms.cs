@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NPC.Core.World
@@ -31,7 +32,8 @@ namespace NPC.Core.World
         public static void RemoveKeeper(IRoomKeeper keeper) => Keepers.Remove(keeper);
 
         /// <summary>
-        /// The first keeper's reason to keep `room` loaded, or null when none has one.
+        /// The first keeper's reason to keep `room` loaded, or null when none has one. A keeper that throws
+        /// has no reason; the others still count. docs/invariants.md#a-kept-room-stays-loaded
         /// </summary>
         public static string? ReasonToKeep(Room room)
         {
@@ -39,7 +41,17 @@ namespace NPC.Core.World
 
             foreach (IRoomKeeper keeper in Keepers)
             {
-                if (keeper.ReasonToKeep(room) is { } reason) return reason;
+                string? reason;
+                try
+                {
+                    reason = keeper.ReasonToKeep(room);
+                }
+                catch (Exception ex)
+                {
+                    FailureLog.Report(keeper, $"Room keeper {keeper.GetType().FullName} - treated as no reason to keep", ex);
+                    continue;
+                }
+                if (reason != null) return reason;
             }
             return null;
         }

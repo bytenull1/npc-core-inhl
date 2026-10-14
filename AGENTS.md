@@ -11,6 +11,15 @@ Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md). The rules below appl
 
 ## 1. Where knowledge lives
 
+**Docs for where and why, code for what.**
+
+- To find code: `docs/architecture.md`, or the topic doc from `docs/README.md`, then grep and read
+  only the methods you need. Don't read whole files or whole docs to orient yourself.
+- Before changing behaviour: read the topic doc and the `invariants.md` entries it links. Code does
+  not show why; a deliberate choice looks like a bug.
+- Code is the truth for what happens now, docs for what should. When they disagree, say so: code
+  that breaks an invariant is a bug; a description that drifted gets fixed in the same change (§4).
+
 - **[docs/README.md](docs/README.md)** - map of every doc. Load only the ones your task needs.
 - **[docs/architecture.md](docs/architecture.md)** - which two or three files matter. Start there
   instead of reading the codebase.
@@ -21,6 +30,8 @@ Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md). The rules below appl
   them, and how to read the scene (`tools/unityscene.py`).
 - **`LAST_SESSION.md`** - local, uncommitted hand-off: what the last session changed and what is
   still unverified.
+- **[YourBuddy](https://github.com/bytenull1/yourbuddy-inhl)** - the reference mod, with its own
+  `AGENTS.md`. When a change spans both, push NPC.Core first: YourBuddy links to it.
 
 **One fact, one home.** Each rule is stated once, in `docs/invariants.md`. Code and other docs link
 to it. If you are about to explain something that already exists, link it instead.
@@ -54,6 +65,9 @@ For non-trivial investigations, answer with: **Verdict**, **Evidence**, **Root c
 **Validation** (expected and falsifying signal), **Docs to update**. Short questions and small edits
 don't need this.
 
+**Replies are short.** Lead with the answer, then the evidence that carries it. Offer more detail
+instead of writing it.
+
 ---
 
 ## 3. Code conventions
@@ -76,11 +90,24 @@ don't need this.
 - **Know no mod.** NPC.Core never references a mod's types and never assumes an NPC is a copy of the
   player: it asks `INpc` and `NpcRegistry`. State every NPC must agree on lives here, never in a mod
   ([docs/invariants.md](docs/invariants.md#several-npc-mods)).
+- **Mod code never throws into the game.** A failure is logged and the game's own code runs on
+  ([docs/invariants.md](docs/invariants.md#mod-code-never-throws-into-the-game)).
+- **One-off tools stay out of the repo.** A script used once to make an asset or fix data is not
+  committed; commit only tools someone will run again.
+- **Editing from a shell:** files are UTF-8 without BOM, LF in the repo; never
+  `Set-Content`, which re-encodes the file. Long Python goes into a script file, not a bash heredoc, which often fails to parse.
 
-**Build:** `dotnet build NPC.Core/NPC.Core.csproj -c Release` (and Debug) - both must build;
-`TreatWarningsAsErrors` is on. Then `python tools/doccheck.py` and `python tools/bundle_nodegraph.py --check`,
-which CI also runs: they fail on a broken doc link or anchor, a `reference.md` constant that no longer
-matches the code, or a bad bundled graph. To test in game, copy
+**Before you call a change safe**, run all of these; CI runs the first three:
+
+1. `dotnet build NPC.Core/NPC.Core.csproj -c Release`, then `-c Debug`. Warnings are errors.
+2. `dotnet test tools/ReachChecks/ReachChecks.csproj -c Release`. A change to reach planning needs a
+   check for it. Stryker takes minutes: run it only when the work is about the checks themselves
+   (adding checks, judging their strength), not after every change.
+3. `python tools/doccheck.py` (doc links, anchors, `reference.md` constants) and
+   `python tools/bundle_nodegraph.py --check` (the bundled graph).
+4. A changed public member: rebuild YourBuddy against it.
+
+After a game update, run [tools/GameCompat](tools/GameCompat/README.md) first. To test in game, copy
 `NPC.Core/bin/Release/netstandard2.1/NPC.Core.dll` to `BepInEx/plugins/` together with a mod that uses it
 (YourBuddy, built from a checkout beside this one); the copy fails while the game is running.
 
@@ -119,3 +146,7 @@ When you change behaviour:
 4. Keep anchors stable; code links to them. If you must rename a heading, update every link
    (`grep -r "old-anchor"`).
 5. Update `LAST_SESSION.md` (local): what changed, what is unverified, what to look for next.
+
+**`LAST_SESSION.md`** opens with a self-contained prompt for the next session: what to read, what
+is done (commit ids), what is next, the rules that still apply. Newest section first. Shrink a
+section to one line once it is committed and tested in game, and drop it when nothing in it is open.

@@ -42,6 +42,8 @@ namespace NPC.Core.Agents
         // no-progress clock must count the time that really passed.
         private float lastGoalCheckAt = 0f;
         private float lastGoalDist = float.MaxValue;
+        // The distance at the last real progress toward this target. GoalProgress.
+        private float goalAnchorDist = GoalProgress.Unset;
         private float noProgressSeconds = 0f;
         private bool noProgressLogged = false;
         // The last window's closing and whether its target was the one before, for the stall line.
@@ -481,6 +483,7 @@ namespace NPC.Core.Agents
                 noProgressSeconds = 0f;
                 noProgressCycles = 0;
                 lastGoalDist = float.MaxValue;
+                goalAnchorDist = GoalProgress.Unset;
                 lastGoalCheckAt = Time.time;
                 return;
             }
@@ -503,7 +506,7 @@ namespace NPC.Core.Agents
             // nothing either way. docs/invariants.md#progress-is-measured-to-one-target
             bool passedWaypoint = lastGoalTargetChanged && navPlan != null && navPathIndex > lastGoalPlanIndex;
             lastGoalPlanIndex = navPlan != null ? navPathIndex : -1;
-            if (lastGoalDist - dist > 0.35f)
+            if (GoalProgress.Closed(ref goalAnchorDist, lastGoalDist, dist, lastGoalTargetChanged))
             {
                 // Made real progress toward the goal.
                 noProgressSeconds = 0f;

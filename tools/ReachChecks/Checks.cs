@@ -221,6 +221,24 @@ public sealed class Checks(ITestOutputHelper output)
             agent.Mind.Abandoned is { } why && why.StartsWith("could not get within reach of test item (", StringComparison.Ordinal),
             "eight seconds without reaching it: deferred a minute and abandoned");
         Reset();
+        // The no-progress watch: windows of flat distance to the move target.
+        float anchor = GoalProgress.Unset;
+        Check(GoalProgress.Closed(ref anchor, GoalProgress.Unset, 5f, true) && anchor == 5f, "the first window counts and anchors");
+        Check(GoalProgress.Closed(ref anchor, 5f, 4.5f, false) && anchor == 4.5f, "closing more than 0.35 m is progress");
+        Check(!GoalProgress.Closed(ref anchor, 4.5f, 4.3f, false) && GoalProgress.Closed(ref anchor, 4.3f, 4.1f, false),
+            "slow closing adds up from the anchor");
+        anchor = 2.23f;
+        bool bounced = false;
+        for (int i = 0; i < 6; i++)
+        {
+            bounced |= GoalProgress.Closed(ref anchor, 2.23f, 2.69f, false);
+            bounced |= GoalProgress.Closed(ref anchor, 2.69f, 2.23f, false);
+        }
+        Check(!bounced, "bouncing off a shut door between 2.69 m and 2.23 m is not progress");
+        anchor = 2.23f;
+        Check(GoalProgress.Closed(ref anchor, 3f, 2.5f, true) && anchor == 2.5f && !GoalProgress.Closed(ref anchor, 3f, 2.9f, true),
+            "a target that moved is judged on its own window and re-anchors");
+
         output.WriteLine($"Passed {checks} approach-planning checks against production NpcAgent.Reach.cs.");
     }
 }

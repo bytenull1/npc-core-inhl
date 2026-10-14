@@ -662,13 +662,16 @@ and `UpdateBaseFloor` adopts a real raised deck after ~4 s.
 ### progress-is-measured-to-one-target
 
 **Rule.** The no-progress watch compares distances to the same target only. A 0.6 s window in which
-the NPC passed a waypoint neither counts as progress nor as a failure.
+the NPC passed a waypoint neither counts as progress nor as a failure. While the target stays put,
+progress is closing 0.35 m on the distance at the last progress, not on the last window's.
 
 **Why.** The next waypoint is farther than the one just reached, so that window always "lost"
 distance. Where waypoints are 1.6-3.3 m apart (the docking corridor, stairs) two such windows ran
 back to back, and an NPC walking straight at its waypoint was logged as stalled and could drop its walk.
+Window to window, bouncing off a shut door (2.69 m, 2.23 m, 2.69 m) counted as progress every other
+window, so the stall recovery never fired and the NPC pushed on the door for good.
 
-**Enforced in.** `NpcAgent.UpdateGoalProgress`.
+**Enforced in.** `NpcAgent.UpdateGoalProgress`, `GoalProgress.Closed`.
 
 ### give-up-per-waypoint
 

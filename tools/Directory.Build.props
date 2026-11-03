@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Distro-built SDKs ship pack analyzers their compiler rejects. No tool here uses those source generators. -->
+    <NoWarn>$(NoWarn);CS9057</NoWarn>
+  </PropertyGroup>
+</Project>

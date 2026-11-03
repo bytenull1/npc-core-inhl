@@ -35,7 +35,8 @@ python tools/unityscene.py refs World/Objects/DestroyedSpaceShip
 
 It has no dependencies and finds the game folder by walking up from the repository (or pass
 `--data "<game>/Isolated Inhale_Data"`). Inactive objects print as `name[off]`; paths are
-accepted as printed.
+accepted as printed. The Linux folder carries the version (`Isolated Inhale v0.8.9_Data`); on macOS
+it is `<game>.app/Contents/Resources/Data`.
 
 It shows, for example, that every station interior lives under the root
 `StaticObjects/<Station>Parts`, not under the station object

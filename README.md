@@ -25,9 +25,9 @@ NPC.Core adds no NPC by itself. Install it for a mod that needs it, such as
 
 ## Installation
 
-1. Install **[BepInEx 5](https://github.com/BepInEx/BepInEx/releases)** for Isolated Inhale (Windows x64).
+1. Install **[BepInEx 5](https://github.com/BepInEx/BepInEx/releases)** for Isolated Inhale (Windows x64, Linux x64 or macOS universal).
 2. Put `NPC.Core.dll` into `BepInEx/plugins/`, next to the NPC mods that use it. One copy serves them all.
-3. Launch the game. The configuration file is `BepInEx/config/com.bytenull1.npccore.cfg`.
+3. Launch the game (on Linux and macOS, through `run_bepinex.sh`). The configuration file is `BepInEx/config/com.bytenull1.npccore.cfg`.
 
 Coming from YourBuddy 1.0.x: your own nav graph and editor keys are carried over on first start.
 

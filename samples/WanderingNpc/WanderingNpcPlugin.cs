@@ -18,7 +18,6 @@ namespace WanderingNpc
     /// </summary>
     [BepInPlugin(Guid, ModName, "1.0.0")]
     [BepInDependency(NpcCorePlugin.Guid, NpcCorePlugin.Version)]
-    [BepInProcess("Isolated Inhale.exe")]
     public sealed class WanderingNpcPlugin : BaseUnityPlugin
     {
         public const string Guid = "com.bytenull1.wanderingnpc";

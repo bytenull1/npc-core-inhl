@@ -16,10 +16,10 @@ for (int i = 0; i < args.Length; i++)
     else mods.Add(args[i]);
 }
 gameRoot ??= FindGameRoot();
-string managed = Path.Combine(gameRoot ?? "", "Isolated Inhale_Data", "Managed");
-if (gameRoot == null || !Directory.Exists(managed))
+string? managed = gameRoot == null ? null : FindManaged(gameRoot);
+if (gameRoot == null || managed == null)
 {
-    Console.Error.WriteLine("No game install found; pass --game <folder holding Isolated Inhale_Data>.");
+    Console.Error.WriteLine("No game install found; pass --game <folder holding Isolated Inhale*_Data or the .app>.");
     return 2;
 }
 string plugins = Path.Combine(gameRoot, "BepInEx", "plugins");
@@ -62,11 +62,17 @@ static string? FindGameRoot()
     {
         for (DirectoryInfo? dir = new(start); dir != null; dir = dir.Parent)
         {
-            if (Directory.Exists(Path.Combine(dir.FullName, "Isolated Inhale_Data", "Managed"))) return dir.FullName;
+            if (FindManaged(dir.FullName) != null) return dir.FullName;
         }
     }
     return null;
 }
+
+// The Linux data folder carries the version; macOS keeps it inside the .app, which --game may also name.
+static string? FindManaged(string root) => !Directory.Exists(root) ? null :
+    Directory.GetDirectories(root, "Isolated Inhale*_Data")
+        .Concat(Directory.GetDirectories(root, "*.app").Append(root).Select(app => Path.Combine(app, "Contents", "Resources", "Data")))
+        .Select(data => Path.Combine(data, "Managed")).FirstOrDefault(Directory.Exists);
 
 static bool IsBcl(string name) => name is "netstandard" or "mscorlib" ||
     name.StartsWith("System", StringComparison.Ordinal) || name.StartsWith("Microsoft.", StringComparison.Ordinal);

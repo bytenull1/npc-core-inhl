@@ -1,7 +1,7 @@
 # The game's own model
 
 How *Isolated Inhale* itself works, as far as every NPC mod needs it, read from a decompile of its
-assembly. Line references are to an ILSpy dump of **v0.8.9** and shift on other builds. `decompiled/`
+assembly. This guide covers the 0.9.0 ship editor. Line references elsewhere in this guide are from v0.8.9. `decompiled/`
 is not in the repository - generate it locally ([`decompiled/README.md`](../decompiled/README.md)).
 
 Several NPC bugs were really misunderstandings of this layer.
@@ -25,20 +25,16 @@ Almost every "the game ignores the NPC" symptom follows from this.
 
 ## 2. There are no room volumes
 
-A room is whichever doorway sensor you last crossed. `EntryDetector.Awake` wires its enter/exit
-events to `player.SetCurrentRoom(innerRoom | outerRoom)`, choosing the side by the sign of
-`rotationReference.InverseTransformPoint(pos).z`.
-
-- `Player.CurrentRoom` is **sticky**: the last doorway crossed, not where you are. It often reads
-  `Front_M00`. Faithful to the game, not fixable.
-- Never ask a room "am I aboard" - [aboard-is-answered-by-the-floor](invariants.md#aboard-is-answered-by-the-floor).
+A room can have an `InstantItemDetector`, which answers `Room.Contains` using its detection boxes.
+NPCs use these boxes to distinguish the two rooms by a doorway. A point inside both rooms, or
+outside both, has no definite side. [Aboard is answered by the floor](invariants.md#aboard-is-answered-by-the-floor).
 
 ### `EntryDetector` re-files the player when a door closes
 
-`Awake` also wires `door.OnClosed → DoorCheckForEnter`, with **no distance check**, and the detector's
-`player` field is never cleared. Every detector the player ever crossed can reassign their room from
-across the ship. Harmless in vanilla; not once NPCs close doors -
-[npc-closes-must-not-move-the-player](invariants.md#npc-closes-must-not-move-the-player).
+Opening a gate enables the two rooms' content. Closing it calls `Room.ClaimContents` for both
+rooms before optional optimization. Each claim scans the room to reparent items and furniture
+and assign the player if found.
+[NPC door closes](invariants.md#npc-closes-must-not-move-the-player) protect the player's room.
 
 ### Which rooms are loaded is saved
 
@@ -50,7 +46,7 @@ has one. `Docker.Dock` resets a station to its entry room, but not on the load p
 ### Docking does not run the room transition
 
 `Docker.Dock` opens the airlock with `ship.Airlock.Open()` (`Docker.cs:71`), which skips
-`Airlock.Enter()` and its `SetCurrentRoom(connectedRoom)` (`Airlock.cs:309`). So boarding from a
+`Airlock.Enter()` and its `SetCurrentRoom(insideRoom)` (`Airlock.cs:309`). So boarding from a
 docked station leaves `CurrentRoom` on the station's room - even across save/load. A **vanilla** bug;
 its visible effect is worked around in [lifecare.md](lifecare.md).
 
@@ -96,7 +92,7 @@ ship's content is off. Found with the scene YAML (`m_MethodName: SetContentEnabl
   `ItemDetector` and a `FurnitureDetector`, not an `EntryDetector`, so walking through one changes
   no tracked room. `connectedRoom` is the room *beside* the chamber, where `Enter` puts the player
   (`FuelMain` for `AirlockMain`, `FuelRefinery` for `AirlockRefinery`, `Front_M00` for the ship's).
-- **The cycle moves whoever `playerDetector` holds**, and the items and furniture in the chamber:
+- **The cycle moves the player found by the chamber detector**, and the items and furniture in the chamber:
   `Exit` sets the player's room to `SpaceRoom` and opens the outer door; `Enter` sets
   `connectedRoom` and opens the inner door. Both refuse to run without the player in the chamber.
   `OnExit` fires before `PlayerShip.SetContentEnabled(false)`, `OnEnter` before `(true)`.
@@ -119,25 +115,10 @@ hold no room loaded while the undocked ship is unloaded.
 
 ### The player's ship is rebuilt by its upgrade stage
 
-`StorymodeShipBuilder.SetShipLevel` (`StorymodeShipBuilder.cs:54`) runs on every load, on an upgrade
-purchase, and from `set_ship_level`. It switches every room's `Structure` off, resets positions, then
-builds the stage:
-
-| Stage | Rooms built | Moved to z +3.75 |
-|---|---|---|
-| 0 | `Front_M00` | all built |
-| 1 | + `Front_R03`, `Front_L06` | all built |
-| 2 | + `Core_R04`, `Core_L07` | all built |
-| 3 | + `Core_M01` | none |
-| 4 | + `Core_R10E`, `Core_L13E` | none |
-| 5 | + `Back_R05`, `Back_L08` | none |
-
-`Back_M02` and the other `E` rooms are never built in story mode. Rooms are 2.875 × 3.75 m cells with
-identity rotation; `ShipAirlock` stays at z 3.125, so the ship grows forward from its airlock. Each
-stage enables `Tier<N>Temp` walls that close doorways to unbuilt rooms.
-
-The rebuild is one synchronous call; no frame runs in between. Rebuilding to the current stage
-changes nothing. See [a-ship-node-rides-its-room](invariants.md#a-ship-node-rides-its-room).
+The ship editor installs rooms under `SpaceShip.RoomsParent` and parks sold rooms inactive at
+the scene root. It places rooms on a 2.875 by 3.75 m grid, with flips expressed as local scale.
+Walls switch between exposed and indoor schemes with their own variants and gates.
+See [a-ship-node-rides-its-room](invariants.md#a-ship-node-rides-its-room).
 
 ### A station's interior is not under the station
 

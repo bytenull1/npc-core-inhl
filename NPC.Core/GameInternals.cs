@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using FMODUnity;
-using Space;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -193,43 +192,21 @@ namespace NPC.Core
         }
 
         /// <summary>
-        /// EntryDetector: rooms on both sides of a doorway, its side test, its door, and the
-        /// player it remembers. NPC room tracking replicates the game's side test with these.
+        /// EntryDetector: its gate and the rooms it loads and optimizes.
         /// </summary>
         internal static class EntryDetectorAccess
         {
             private static readonly FieldInfo? InnerRoom = Field<Room>(typeof(EntryDetector), "innerRoom", "NPC room tracking");
             private static readonly FieldInfo? OuterRoom = Field<Room>(typeof(EntryDetector), "outerRoom", "NPC room tracking");
-            private static readonly FieldInfo? RotationReference = Field<Transform>(typeof(EntryDetector), "rotationReference", "NPC room tracking");
-            private static readonly FieldInfo? ReverseSide = Field<bool>(typeof(EntryDetector), "reverseSide", "NPC room tracking");
             private static readonly FieldInfo? Door = Field<Gate>(typeof(EntryDetector), "door", "room content loading around doors");
             private static readonly FieldInfo? Optimize = Field<bool>(typeof(EntryDetector), "optimize", "switching off rooms an NPC left");
-            // The detector's remembered player, which the game sets but never clears.
-            // docs/invariants.md#npc-closes-must-not-move-the-player
-            private static readonly FieldInfo? CurrentPlayer = Field<Player>(typeof(EntryDetector), "player", "keeping NPCs' door closes from moving the player between rooms");
-
-            private static readonly FieldInfo? ItemZone = Field<ItemDetector>(typeof(EntryDetector), "itemDetector",
-                "keeping doorways from re-filing items that left them switched off");
-
-            internal static ItemDetector? GetItemZone(EntryDetector? detector) => Get<ItemDetector>(ItemZone, detector);
             internal static Room? GetInnerRoom(EntryDetector? detector) => Get<Room>(InnerRoom, detector);
             internal static Room? GetOuterRoom(EntryDetector? detector) => Get<Room>(OuterRoom, detector);
-            internal static Transform? GetRotationReference(EntryDetector? detector) => Get<Transform>(RotationReference, detector);
-            internal static bool GetReverseSide(EntryDetector? detector) => GetValue<bool>(ReverseSide, detector) == true;
             internal static Gate? GetDoor(EntryDetector? detector) => Get<Gate>(Door, detector);
             /// <summary>
             /// Whether the game switches the far room off once the door shuts; false when unreadable.
             /// </summary>
             internal static bool GetOptimize(EntryDetector? detector) => GetValue<bool>(Optimize, detector) == true;
-            internal static Player? GetCurrentPlayer(EntryDetector? detector) => Get<Player>(CurrentPlayer, detector);
-
-            internal static bool SetCurrentPlayer(EntryDetector? detector, Player? player)
-            {
-                if (CurrentPlayer == null || detector == null) return false;
-
-                CurrentPlayer.SetValue(detector, player);
-                return true;
-            }
         }
 
         /// <summary>
@@ -241,15 +218,15 @@ namespace NPC.Core
             private static readonly FieldInfo? OuterDoor = Field<Gate>(typeof(Airlock), "outerDoor", "airlock gate detection / space protection");
             private static readonly FieldInfo? InnerDoor = Field<Gate>(typeof(Airlock), "innerDoor", "airlock gate detection / space protection");
             private static readonly FieldInfo? Hatch = Field<Gate>(typeof(Airlock), "hatch", "airlock gate detection / space protection");
-            private static readonly FieldInfo? PlayerDetector = Field<PlayerDetector>(typeof(Airlock), "playerDetector",
+            private static readonly FieldInfo? ObjectDetector = Field<InstantItemDetector>(typeof(Airlock), "objectDetector",
                 "which side of an airlock an NPC is on, and no safe spot in a chamber (its volume)");
-            private static readonly FieldInfo? ConnectedRoom = Field<Room>(typeof(Airlock), "connectedRoom",
+            private static readonly FieldInfo? ConnectedRoom = Field<Room>(typeof(Airlock), "insideRoom",
                 "the room an NPC is in after coming in through an airlock");
 
             internal static Gate? GetOuterDoor(Airlock? airlock) => Get<Gate>(OuterDoor, airlock);
             internal static Gate? GetInnerDoor(Airlock? airlock) => Get<Gate>(InnerDoor, airlock);
             internal static Gate? GetHatch(Airlock? airlock) => Get<Gate>(Hatch, airlock);
-            internal static PlayerDetector? GetPlayerDetector(Airlock? airlock) => Get<PlayerDetector>(PlayerDetector, airlock);
+            internal static InstantItemDetector? GetObjectDetector(Airlock? airlock) => Get<InstantItemDetector>(ObjectDetector, airlock);
             internal static Room? GetConnectedRoom(Airlock? airlock) => Get<Room>(ConnectedRoom, airlock);
         }
 
@@ -332,9 +309,17 @@ namespace NPC.Core
 
         internal static class SellStationAccess
         {
-            private static readonly FieldInfo? ItemDetector = Field<ItemDetector>(typeof(SellStation), "itemDetector", "keeping NPCs out of sell station pens");
+            private static readonly FieldInfo? ItemDetector = Field<InstantItemDetector>(typeof(SellStation), "itemDetector", "keeping NPCs out of sell station pens");
 
-            internal static ItemDetector? GetItemDetector(SellStation? station) => Get<ItemDetector>(ItemDetector, station);
+            internal static InstantItemDetector? GetItemDetector(SellStation? station) => Get<InstantItemDetector>(ItemDetector, station);
+        }
+
+        internal static class InstantDetectorAccess
+        {
+            private static readonly FieldInfo? Boxes = Field<List<DetectionBox>>(typeof(InstantItemDetector), "detectionBoxes",
+                "finding airlock centers and keeping NPCs outside sell pens");
+
+            internal static List<DetectionBox>? GetBoxes(InstantItemDetector? detector) => Get<List<DetectionBox>>(Boxes, detector);
         }
 
         /// <summary>

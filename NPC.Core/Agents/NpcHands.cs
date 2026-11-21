@@ -274,10 +274,7 @@ namespace NPC.Core.Agents
         }
 
         /// <summary>
-        /// EntryDetector.CheckItemParents reparents an item that crosses a doorway into the room it
-        /// ended up in - but skips anything with restrictGrab set, which a held item always has. Left
-        /// alone, a carried item keeps the room it was picked up in and goes inactive with that room's
-        /// content the moment the player walks out of it.
+        /// Transfer a held item before its old room contents unload.
         /// docs/invariants.md#a-carried-item-belongs-to-the-room-its-carrier-is-in
         /// </summary>
         private void ReownToCarrierRoom(Grabbable item)
@@ -287,9 +284,10 @@ namespace NPC.Core.Agents
             // a trash can or a sale clears it (Grabbable.Destroy), and that one must stay gone.
             if (item == null || !item.gameObject.activeSelf || content == null || !content.gameObject.activeInHierarchy) return;
 
-            if (item.transform.parent == content) return;
+            if (item.transform.parent == content || content.parent == null ||
+                !content.parent.TryGetComponent(out Room room) || room.ContentParent != content) return;
 
-            item.SetParent(content);
+            item.SetParentRoom(room);
             NpcLog.Log.LogInfo($"[ai] Carried '{item.gameObject.name}' into {content.gameObject.name}");
         }
 

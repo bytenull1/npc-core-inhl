@@ -52,6 +52,7 @@ namespace NPC.Core
             private static void Upkeep()
             {
                 NpcRegistry.PruneDestroyed();
+                ShipRebuild.CheckLayout();
                 NavGraph.TickSave();
                 CoreSidecar.Tick();
                 // The game re-enables the monster on its own schedule, so an override is re-asserted.
@@ -101,6 +102,7 @@ namespace NPC.Core
         /// </summary>
         private static void ResetScene()
         {
+            ShipRebuild.Reset();
             NpcDoors.ResetScene();
             NpcAirlocks.ResetScene();
             NpcTrail.ResetScene();
@@ -179,19 +181,17 @@ namespace NPC.Core
         [HarmonyPatch, Description("door closes by NPCs: the player's room and blocked-close retries")]
         internal static class Doors
         {
-            /// <summary>
-            /// EntryDetector re-files the player whenever a door it knows closes, with no proximity
-            /// check. For a close an NPC issued elsewhere, hide the remembered player.
-            /// docs/invariants.md#npc-closes-must-not-move-the-player
-            /// </summary>
-            [HarmonyPatch(typeof(EntryDetector), "DoorCheckForEnter")]
+            [ThreadStatic]
+            private static Player? _keepRoomFor;
+
+            [HarmonyPatch(typeof(EntryDetector), "ClaimContents")]
             [HarmonyPrefix]
-            public static void EntryDetector_DoorCheckForEnter_Prefix(EntryDetector __instance, out Player? __state)
+            public static void EntryDetector_ClaimContents_Prefix(EntryDetector __instance, out Player? __state)
             {
-                __state = null;
+                __state = _keepRoomFor;
                 try
                 {
-                    __state = HidePlayer(__instance);
+                    if (ClosedAwayFromPlayer(__instance, out _, out Player? player)) _keepRoomFor = player;
                 }
                 catch (Exception ex)
                 {
@@ -199,28 +199,21 @@ namespace NPC.Core
                 }
             }
 
-            // The player hidden from the detector, to put back after the check; null when left alone.
-            private static Player? HidePlayer(EntryDetector detector)
-            {
-                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(detector);
-                if (gate == null || !NpcDoors.WasClosedByNpc(gate, out _)) return null;
+            [HarmonyPatch(typeof(EntryDetector), "ClaimContents")]
+            [HarmonyFinalizer]
+            public static void EntryDetector_ClaimContents_Finalizer(Player? __state) => _keepRoomFor = __state;
 
-                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(detector);
-                if (player == null || player.Controller == null) return null;
+            [HarmonyPatch(typeof(Player), nameof(Player.SetCurrentRoom))]
+            [HarmonyPrefix]
+            public static bool Player_SetCurrentRoom_Prefix(Player __instance) => !ReferenceEquals(__instance, _keepRoomFor);
 
-                // The player really is at this doorway: let the game do its normal thing.
-                if (NpcDoors.PlayerAtDoorway(player, gate)) return null;
-
-                return GameInternals.EntryDetectorAccess.SetCurrentPlayer(detector, null) ? player : null;
-            }
-
-            [HarmonyPatch(typeof(EntryDetector), "DoorCheckForEnter")]
+            [HarmonyPatch(typeof(EntryDetector), "ClaimContents")]
             [HarmonyPostfix]
-            public static void EntryDetector_DoorCheckForEnter_Postfix(EntryDetector __instance, Player? __state)
+            public static void EntryDetector_ClaimContents_Postfix(EntryDetector __instance)
             {
                 try
                 {
-                    DoorChecked(__instance, __state);
+                    DoorChecked(__instance);
                 }
                 catch (Exception ex)
                 {
@@ -228,45 +221,22 @@ namespace NPC.Core
                 }
             }
 
-            private static void DoorChecked(EntryDetector detector, Player? hidden)
+            private static void DoorChecked(EntryDetector detector)
             {
-                if (hidden != null) GameInternals.EntryDetectorAccess.SetCurrentPlayer(detector, hidden);
+                if (!ClosedAwayFromPlayer(detector, out INpc? closer, out _) || closer is not INpcDoorUser user) return;
 
-                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(detector);
-                if (gate == null || !NpcDoors.WasClosedByNpc(gate, out INpc? closer)) return;
-
-                // At the doorway the game has just switched rooms for the player. Anywhere else it switched
-                // nothing, so the closer puts back what it loaded: docs/invariants.md#npc-closes-must-not-move-the-player
-                Player? player = GameInternals.EntryDetectorAccess.GetCurrentPlayer(detector);
-                if (player != null && player.Controller != null && NpcDoors.PlayerAtDoorway(player, gate)) return;
-
-                // The closer's own side test decides; every other NPC keeps its room through TracksRoom.
-                if (closer is not INpcDoorUser user) return;
-
-                using NpcRegistry.ActingScope _ = NpcRegistry.Acting(closer);
+                using NpcRegistry.ActingScope scope = NpcRegistry.Acting(closer);
                 user.OnDoorClosedAway(detector);
             }
 
-            /// <summary>
-            /// A doorway re-files every item its zone lists; a stored or worn one left the zone switched
-            /// off and never exited. docs/invariants.md#an-item-zone-lists-only-items-in-it
-            /// </summary>
-            [HarmonyPatch(typeof(EntryDetector), "CheckItemParents")]
-            [HarmonyPrefix]
-            public static void EntryDetector_CheckItemParents_Prefix(EntryDetector __instance)
+            private static bool ClosedAwayFromPlayer(EntryDetector detector, out INpc? closer, out Player? player)
             {
-                try
-                {
-                    PruneItemZone(__instance);
-                }
-                catch (Exception ex)
-                {
-                    Failed(ex);
-                }
+                player = NpcPlayer.Pilot;
+                closer = null;
+                Gate? gate = GameInternals.EntryDetectorAccess.GetDoor(detector);
+                return gate != null && NpcDoors.WasClosedByNpc(gate, out closer) &&
+                    (player == null || player.Controller == null || !NpcDoors.PlayerAtDoorway(player, gate));
             }
-
-            private static void PruneItemZone(EntryDetector detector) =>
-                NpcItemZones.Prune(GameInternals.EntryDetectorAccess.GetItemZone(detector), detector.gameObject.name);
 
             /// <summary>
             /// A gate's AntiCrasher just undid a close, and nothing in the game will ever retry it. The NPC
@@ -608,35 +578,38 @@ namespace NPC.Core
             }
         }
 
-        [HarmonyPatch, Description("NPCs riding a ship rebuild")]
+        [HarmonyPatch, Description("NPC routes and floors during ship editor changes")]
         internal static class ShipRebuild
         {
-            /// <summary>
-            /// Where an agent aboard stood before the player ship is rebuilt, judged while every room
-            /// is still where it was. Room is null on a floor of no room, or with no floor at all.
-            /// </summary>
-            public struct ShipRebuildState
+            private static int _layout;
+
+            internal static void Reset() => _layout = 0;
+
+            internal static void CheckLayout()
             {
-                public NpcAgent Agent;
-                public int LayoutBefore;
-                public bool HadFloor;
-                public CustomRoom? Room;
-                public Vector3 RoomAt;
+                int layout = NavGraph.ShipLayoutSignature();
+                int previous = _layout;
+                _layout = layout;
+                if (previous == 0 || layout == 0 || previous == layout) return;
+
+                foreach (INpc npc in NpcRegistry.Snapshot())
+                {
+                    if (NpcRegistry.IsGone(npc) || npc is not NpcAgent agent || agent.IsDead ||
+                        !agent.isActiveAndEnabled || !agent.IsAboardPlayerShip()) continue;
+
+                    using NpcRegistry.ActingScope scope = NpcRegistry.Acting(agent);
+                    agent.OnShipLayoutChanged(true);
+                }
             }
 
-            /// <summary>
-            /// SetShipLevel switches every room off and moves some; an NPC aboard rides the scene root,
-            /// so its room is found here, before ClearLevel. docs/invariants.md#an-npc-rides-its-own-floor
-            /// </summary>
-            [HarmonyPatch(typeof(StorymodeShipBuilder), nameof(StorymodeShipBuilder.SetShipLevel))]
+            [HarmonyPatch(typeof(ShipEditor), "DestroyRoomSafely")]
             [HarmonyPrefix]
-            public static void StorymodeShipBuilder_SetShipLevel_Prefix(StorymodeShipBuilder __instance,
-                out List<ShipRebuildState>? __state)
+            public static void ShipEditor_DestroyRoomSafely_Prefix(CustomRoom room, out List<NpcAgent>? __state)
             {
                 __state = null;
                 try
                 {
-                    __state = AgentsAboard(__instance);
+                    __state = OnRoomFloor(room);
                 }
                 catch (Exception ex)
                 {
@@ -644,49 +617,32 @@ namespace NPC.Core
                 }
             }
 
-            private static List<ShipRebuildState>? AgentsAboard(StorymodeShipBuilder builder)
+            private static List<NpcAgent>? OnRoomFloor(CustomRoom room)
             {
-                List<ShipRebuildState>? aboard = null;
                 SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
-                if (ship == null || builder == null || builder != ship.StorymodeShipBuilder) return null;
+                if (ship == null || room == null || room.transform.parent != ship.RoomsParent || !room.Enabled) return null;
 
-                int layoutBefore = NavGraph.ShipLayoutSignature();
+                List<NpcAgent>? aboard = null;
                 foreach (INpc npc in NpcRegistry.All)
                 {
-                    if (NpcRegistry.IsGone(npc) || npc is not NpcAgent agent || agent.IsDead ||
-                        !agent.gameObject.activeInHierarchy || !agent.IsAboardPlayerShip())
-                    {
-                        continue;
-                    }
+                    if (NpcRegistry.IsGone(npc) || npc is not NpcAgent agent || agent.IsDead || !agent.isActiveAndEnabled) continue;
 
-                    ShipRebuildState state = new() { Agent = agent, LayoutBefore = layoutBefore };
-                    if (NavProbe.TryFloorCollider(agent.transform.position, out Collider? floor) && floor != null)
+                    if (NavProbe.TryFloorCollider(agent.transform.position, out Collider? floor) &&
+                        floor != null && floor.GetComponentInParent<CustomRoom>() == room)
                     {
-                        state.HadFloor = true;
-                        CustomRoom room = floor.GetComponentInParent<CustomRoom>();
-                        if (room != null && Array.IndexOf(ship.Rooms, room) >= 0)
-                        {
-                            state.Room = room;
-                            state.RoomAt = ship.transform.InverseTransformPoint(room.transform.position);
-                        }
+                        (aboard ??= []).Add(agent);
                     }
-                    aboard ??= [];
-                    aboard.Add(state);
                 }
                 return aboard;
             }
 
-            /// <summary>
-            /// An agent in a room still built moves with it; one whose room is gone is left to the space
-            /// protection. Either way its plan and safe spot belong to the old layout.
-            /// </summary>
-            [HarmonyPatch(typeof(StorymodeShipBuilder), nameof(StorymodeShipBuilder.SetShipLevel))]
+            [HarmonyPatch(typeof(ShipEditor), "DestroyRoomSafely")]
             [HarmonyPostfix]
-            public static void StorymodeShipBuilder_SetShipLevel_Postfix(byte level, List<ShipRebuildState>? __state)
+            public static void ShipEditor_DestroyRoomSafely_Postfix(CustomRoom room, List<NpcAgent>? __state)
             {
                 try
                 {
-                    Rebuilt(level, __state);
+                    MoveOffSoldFloor(room, __state);
                 }
                 catch (Exception ex)
                 {
@@ -694,52 +650,20 @@ namespace NPC.Core
                 }
             }
 
-            private static void Rebuilt(byte level, List<ShipRebuildState>? aboard)
+            private static void MoveOffSoldFloor(CustomRoom room, List<NpcAgent>? aboard)
             {
-                if (aboard == null) return;
+                if (aboard == null || room == null || room.Enabled) return;
 
                 SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
-                if (ship == null) return;
+                if (ship == null || ship.Airlock == null) return;
 
-                if (NavGraph.ShipLayoutSignature() == aboard[0].LayoutBefore)
+                foreach (NpcAgent agent in aboard)
                 {
-                    if (NpcLog.Level >= 1)
-                    {
-                        NpcLog.Log.LogInfo($"[ai] Ship rebuilt (stage {level}), layout unchanged - NPCs left as they were");
-                    }
-                    return;
-                }
+                    if (agent == null || agent.IsDead) continue;
 
-                foreach (ShipRebuildState state in aboard)
-                {
-                    if (state.Agent == null || state.Agent.IsDead) continue;
-
-                    using NpcRegistry.ActingScope _ = NpcRegistry.Acting(state.Agent);
-                    RideRebuild(state, ship, level);
-                }
-            }
-
-            private static void RideRebuild(ShipRebuildState state, SpaceShip ship, byte level)
-            {
-                NpcAgent agent = state.Agent;
-                CustomRoom? room = state.Room;
-                if (room == null)
-                {
-                    agent.RideShipRebuild(level, Vector3.zero, state.HadFloor,
-                        state.HadFloor ? "on a floor of no room, which does not move" : "no floor under it to judge by");
-                }
-                else if (!room.EnabledStructure)
-                {
-                    agent.RideShipRebuild(level, Vector3.zero, false,
-                        $"'{room.gameObject.name}' is not built any more - left to the space protection");
-                }
-                else
-                {
-                    Vector3 shift = ship.transform.InverseTransformPoint(room.transform.position) - state.RoomAt;
-                    string what = shift.sqrMagnitude < 0.0001f
-                        ? $"'{room.gameObject.name}' did not move"
-                        : $"moved with '{room.gameObject.name}' by {shift:0.00}";
-                    agent.RideShipRebuild(level, ship.transform.TransformVector(shift), true, what);
+                    using NpcRegistry.ActingScope scope = NpcRegistry.Acting(agent);
+                    agent.OnShipLayoutChanged(false);
+                    agent.PullAboard(NpcDoors.ChamberCenter(ship.Airlock), $"Ship editor removed '{room.name}' under {agent.Name}");
                 }
             }
         }

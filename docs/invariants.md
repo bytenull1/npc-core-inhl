@@ -691,18 +691,14 @@ new target and walked back down.
 
 ### a-ship-node-rides-its-room
 
-**Rule.** A ship node is anchored to the room whose floor it stands on (`Node.Anchor`, or `hull`),
-with where that room stood (`AnchorAt`). It is live only while that room is built and moves with
-it. A manual link records the room offset it was drawn in (`ManualLink.Offset`) and is live only in
-that layout.
+**Rule.** Legacy ship nodes and links stay dormant on editor-built ships. They describe a fixed
+layout and old room anchors. Keep their saved coordinates and anchors so the migration does not
+rewrite the player's graph.
 
-**Why.** The ship's rooms depend on its upgrade stage. The shipped graph is drawn at stage 5; at
-stage 0 most of its ship nodes stand in rooms that do not exist. Links need their own offset
-because the cockpit connects to the airlock differently at stages 0–2. The room comes from the
-floor collider, never the tracked room. Nodes from an old file are anchored on first load.
+**Why.** A ship editor can put a wall where a legacy link crossed, mirror the floor under a node,
+or remove that floor entirely.
 
-**Enforced in.** `NavGraph.OwnerSnapshot.IsLive` / `ShiftOf` / `WorldOf` / `LinkIsLive`,
-`ToggleLink`, `SameOffset`, `TryAnchorShipNode`, `ShipLayoutSignature`.
+**Enforced in.** `NavGraph.OwnerSnapshot.IsLive`, `NavGraph.AddNode` and `NavGraph.ShipLayoutSignature`.
 
 ### a-station-owns-its-interior-by-reference
 
@@ -778,17 +774,15 @@ open the doors to every NPC for a second.
 
 ### npc-closes-must-not-move-the-player
 
-**Rule.** A door an NPC closes must not re-file the player's current room. An NPC records each close
-it issues (`NpcDoors.NoteClosedBy`); away from the player, the rooms the game did not switch off are
-the closer's to release (`INpcDoorUser.OnDoorClosedAway`).
+**Rule.** A door an NPC closes away from the player must not reassign the player's current room.
+The door still claims items and furniture. The closer releases unneeded rooms after the game
+finishes its optimization.
 
-**Why.** `EntryDetector` re-evaluates the player's side on every door close, with no distance check
-([game-model.md](game-model.md#entrydetector-re-files-the-player-when-a-door-closes)). An NPC closing a
-door across the ship moved the player's room, dropped their lifecare icon and loaded or unloaded rooms
-around them. With the player hidden the game's own unload never runs, so the closer does it.
+**Why.** The two room volumes can overlap. The last room to claim the player would otherwise win
+even if the player stayed on the same side of the door.
 
-**Enforced in.** `Patches.Doors.EntryDetector_DoorCheckForEnter_Prefix` / `_Postfix`, gated on
-`NpcDoors.WasClosedByNpc` and `PlayerAtDoorwayRadius`.
+**Enforced in.** `Patches.Doors` scopes the guard on `Player.SetCurrentRoom` to
+`EntryDetector.ClaimContents`, gated on `NpcDoors.WasClosedByNpc` and `PlayerAtDoorwayRadius`.
 
 ### pending-closes-are-a-list
 
@@ -878,7 +872,7 @@ The test is the position against the chamber volume, never the tracked room.
 **Why.** A chamber is no room, and `Airlock.connectedRoom` is the room beside it: a room test took
 no safe spot in `FuelMain`, `FuelRefinery` or `Front_M00`, so a space rescue landed at an older spot.
 
-**Enforced in.** `NpcAgent.MaySaveSpotAt` (from `UpdateRoomTracking`, `RideShipRebuild`);
+**Enforced in.** `NpcAgent.MaySaveSpotAt` (from `UpdateRoomTracking`, `OnShipLayoutChanged`);
 `NpcDoors.ChamberAt(point, withShip)`.
 
 ### an-npc-loads-rooms-by-the-door-rule
@@ -979,13 +973,12 @@ Three special cases:
   it: parented into a station's interior it would be parked out there on undock. The world never
   moves during a walk outside (the airlock locks while the ship moves); once it does - undocked,
   flown off - the agent goes aboard into the ship's airlock.
-- **Ship rebuild:** `SetShipLevel` moves some rooms 3.75 m. An agent aboard moves with its room; one
-  whose room is gone stays and is left to space protection. The plan is dropped, the brain ends a walk
-  to an old world point (`INpcBrain.OnShipRebuilt`), and the safe spot becomes the new position, or is
-  forgotten when its floor is gone.
+- **Ship rebuild:** An agent aboard drops its old plan and the brain ends a walk to an old world
+  point (`INpcBrain.OnShipRebuilt`). If the editor sells the floor under the agent, it goes to the
+  ship airlock and forgets the old safe spot.
 
 **Enforced in.** `NpcAgent.UpdateOwnerAnchor`, `NpcVessels.FloorOwner`, `RememberSafePosition` /
-`TryRecallSafePosition`, `RideOwner`, `RideShipRebuild`, `OnFloatingChanged`, `UpdateSpaceState`,
+`TryRecallSafePosition`, `RideOwner`, `OnShipLayoutChanged`, `OnFloatingChanged`, `UpdateSpaceState`,
 `PullAboard`; `Patches.Docking`, `Patches.ShipRebuild`; YourBuddy's `BuddySaveFile.Owner` /
 `OwnerLocalPosition`.
 
@@ -1025,11 +1018,10 @@ parent name that does not exist in a vanilla load.
 **Rule.** A held item's parent is where the floor under its carrier says it is (`NpcAgent.ItemParentAt`):
 aboard, the tracked room if it is a ship room, else the nearest ship room; on a station, the tracked
 room if it is that station's, else the station's interior. It is re-owned through
-`Grabbable.SetParent` whenever they differ, and always before `SavePosition`. An item already
+`Grabbable.SetParentRoom` when the destination is a room with a content parent, before `SavePosition`. An item already
 inactive (`activeSelf` false) is left alone - a trash can or a sale destroyed it.
 
-**Why.** `EntryDetector.CheckItemParents` skips items with `restrictGrab`, so a carried box kept its
-old room, went inactive when that room was culled, and vanished from the NPC's hands. The tracked
+**Why.** Room claims cannot see a carried box with its colliders off, so it kept its old room, went inactive when that room was culled, and vanished from the NPC's hands. The tracked
 room alone is not enough: it changes only at station doorways, and none of the ship's rooms has one,
 so after an undock an NPC aboard is still "in" a station room - a suit taken off there vanished with
 that room once the player carried it away.
@@ -1040,17 +1032,13 @@ from `Follow` and `Release`; a mod putting an item down asks `ItemParentAt` too 
 
 ### an-item-zone-lists-only-items-in-it
 
-**Rule.** An item whose colliders or object an NPC switches off (picked up, worn) is first taken off
-every `ItemDetector` list (`NpcItemZones.Leave`). Before a doorway re-files its list
-(`EntryDetector.CheckItemParents`), switched-off items are dropped from it.
+**Rule.** An item an NPC picks up or wears is taken out of every persistent `ItemDetector` list
+before disabling its colliders. Room claims and selling use live scans.
 
-**Why.** An `ItemDetector` forgets an item only in `OnTriggerExit`, which Unity does not send for a
-collider disabled inside the trigger. The stale entry stayed, and every later door open re-parented
-the item into that doorway's room, wherever it lay. It vanished when that room was culled. The player's
-own belt, backpack and suit equip switch items off the same way.
+**Why.** Unity does not send `OnTriggerExit` for a collider disabled inside a trigger. Live scans
+only see active items with enabled colliders.
 
-**Enforced in.** `NpcHands.PickUp`, `Patches.Doors` (`CheckItemParents` prefix) via
-`NpcItemZones.Prune`; a mod switching an item off calls `Leave` (YourBuddy's `BuddySuit.Wear`).
+**Enforced in.** `NpcItemZones.Leave` from `NpcHands.PickUp` and YourBuddy's `BuddySuit.Wear`.
 
 ### player-icon-fix-is-one-directional
 

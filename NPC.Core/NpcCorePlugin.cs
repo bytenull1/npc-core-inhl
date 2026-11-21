@@ -20,7 +20,6 @@ namespace NPC.Core
     /// inside your own DLL. See README.md and docs/api.md.
     /// </summary>
     [BepInPlugin(Guid, "NPC.Core", Version)]
-    [BepInProcess("Isolated Inhale.exe")]
     public sealed class NpcCorePlugin : BaseUnityPlugin
     {
         public const string Guid = "com.bytenull1.npccore";

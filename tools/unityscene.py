@@ -20,6 +20,7 @@ PATH is a slash path from a root, e.g. StaticObjects/StationParts. Inactive obje
 shown with [off]. As a library: load_scene(), load_monoscripts(), Scene.
 """
 import argparse
+import glob
 import os
 import struct
 import sys
@@ -180,9 +181,13 @@ class Scene:
 def find_data_dir():
     here = os.path.dirname(os.path.abspath(__file__))
     while True:
-        cand = os.path.join(here, 'Isolated Inhale_Data')
-        if os.path.isfile(os.path.join(cand, 'level1')):
-            return cand
+        # the Linux folder carries the version; macOS keeps it inside the .app
+        root = glob.escape(here)
+        for cand in (glob.glob(os.path.join(root, 'Isolated Inhale*_Data'))
+                     + glob.glob(os.path.join(root, '*.app', 'Contents', 'Resources', 'Data'))
+                     + [os.path.join(here, 'Contents', 'Resources', 'Data')]):
+            if os.path.isfile(os.path.join(cand, 'level1')):
+                return cand
         up = os.path.dirname(here)
         if up == here:
             return None

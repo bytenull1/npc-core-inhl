@@ -7,7 +7,7 @@ works on a new game build before the mod is installed. It needs the game, so CI 
 dotnet run --project tools/GameCompat/GameCompat.csproj -c Release -- [--game <folder>] [mod.dll ...]
 ```
 
-`--game` defaults to the first folder above the current one that holds `Isolated Inhale_Data`. With no
+`--game` defaults to the first folder above the current one that holds `Isolated Inhale*_Data` or a macOS `.app`. With no
 DLLs it checks everything in `BepInEx/plugins`. DLLs named on the command line win over installed copies.
 
 | Check | A miss means |

@@ -244,11 +244,11 @@ Mods must not duplicate these, or two copies of the same state fight:
   ([one-interact-owner](invariants.md#one-interact-owner));
 - the sidecar extension `npccore`;
 - the Harmony patches on `GameManager.FixedUpdate` and `Start`, `SceneLoader.LoadGame`,
-  `ConsoleMenu.Init`, `EntryDetector.DoorCheckForEnter` / `CheckItemParents`, `Gate.FailClose`, `Room.SetContentEnabled`,
+  `ConsoleMenu.Init`, `EntryDetector.ClaimContents`, `Player.SetCurrentRoom`, `Gate.FailClose`, `Room.SetContentEnabled`,
   `SaveParser.WriteSaveFile` / `DeleteSaveFile` / `ClearSaveFiles` / `SyncSavePreviews`,
   `BreathlessController.PlayerEntered` / `DetectItem`, `BreathlessAggressor.DetectItem`,
   `LifecareDisplay.UpdatePlayerIcon` / `UpdateLifeformsCount`, `HidingSpot.Interact`, `Docker.Undock`,
-  `StorymodeShipBuilder.SetShipLevel` and `SpaceShip.SetContentEnabled`
+  `ShipEditor.DestroyRoomSafely` and `SpaceShip.SetContentEnabled`
   ([one-patch-per-game-hook](invariants.md#one-patch-per-game-hook)).
 
 ---

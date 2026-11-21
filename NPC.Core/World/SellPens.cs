@@ -99,8 +99,21 @@ namespace NPC.Core.World
                 }
                 if (!fenced) continue;
 
-                ItemDetector? detector = GameInternals.SellStationAccess.GetItemDetector(station);
-                if (detector != null && detector.TryGetComponent(out BoxCollider zone)) pen.Encapsulate(zone.bounds);
+                InstantItemDetector? detector = GameInternals.SellStationAccess.GetItemDetector(station);
+                if (detector != null && GameInternals.InstantDetectorAccess.GetBoxes(detector) is { } boxes)
+                {
+                    foreach (DetectionBox box in boxes)
+                    {
+                        Transform t = detector.transform;
+                        Vector3 half = box.size * 0.5f;
+                        for (int corner = 0; corner < 8; corner++)
+                        {
+                            Vector3 offset = new((corner & 1) == 0 ? -half.x : half.x,
+                                (corner & 2) == 0 ? -half.y : half.y, (corner & 4) == 0 ? -half.z : half.z);
+                            pen.Encapsulate(t.position + t.TransformDirection(box.centerOffset + offset));
+                        }
+                    }
+                }
 
                 Pens.Add(new Pen(station, pen));
             }

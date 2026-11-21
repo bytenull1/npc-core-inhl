@@ -16,7 +16,7 @@ Every node has an `Owner`:
 
 | Owner | Stored in | Active when |
 |---|---|---|
-| `"ship"` | player-ship-local space, plus the room it stands on | that room is built ([below](#ship-nodes-follow-the-ships-upgrades)) |
+| `"ship"` | player-ship-local space, plus the legacy room anchor | dormant ([below](#ship-nodes-follow-the-ships-upgrades)) |
 | station name (e.g. `ShipyardStation`) | that station's local space | the ship is docked to it |
 | `"world"` | `WorldObjects` space | always |
 
@@ -44,15 +44,11 @@ agent passes its own `IsOutside`. The airlock is crossed by the player's cycle, 
 
 ### Ship nodes follow the ship's upgrades
 
-The ship's rooms depend on its upgrade stage
-([game-model.md](game-model.md#the-players-ship-is-rebuilt-by-its-upgrade-stage)). A ship node
-remembers its room and is walkable only while that room is built
-([a-ship-node-rides-its-room](invariants.md#a-ship-node-rides-its-room)). In the editor such a node
-is grey and unselectable, and the readout names the room (`[ship/Core_M01]`).
-
-The shipped graph is drawn at stage 5, plus one link for stages 0–2: cockpit `#288` → airlock
-`#304`. A link you draw holds in every stage where its two rooms stand as they do now, so fix a gap
-at one stage by drawing the link *at* that stage - it cannot break the others.
+The ship editor can sell, place and flip rooms and swap wall schemes
+([game-model.md](game-model.md#the-players-ship-is-rebuilt-by-its-upgrade-stage)).
+NPC.Core keeps legacy ship records in graph files and excludes them from routing and editing.
+The graph refreshes its edge and gate caches when the installed rooms or walls change.
+See [a-ship-node-rides-its-room](invariants.md#a-ship-node-rides-its-room).
 
 ### Links
 

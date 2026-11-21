@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <GameManagedDir Condition="'$(GameManagedDir)' == ''">$(MSBuildThisFileDirectory)lib</GameManagedDir>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>NPC.Core</AssemblyName>
     <RootNamespace>NPC.Core</RootNamespace>
@@ -28,56 +29,47 @@
       <HintPath>lib\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>lib\Assembly-CSharp.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\Assembly-CSharp.dll">
       <Private>false</Private>
     </Reference>
     <Reference Include="BepInEx">
       <HintPath>lib\BepInEx.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>lib\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\Newtonsoft.Json.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="FMODUnity">
-      <HintPath>lib\FMODUnity.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\FMODUnity.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>lib\UnityEngine.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.AnimationModule">
-      <HintPath>lib\UnityEngine.AnimationModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.AnimationModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>lib\UnityEngine.CoreModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.CoreModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>lib\UnityEngine.PhysicsModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.PhysicsModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>lib\UnityEngine.IMGUIModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.IMGUIModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>lib\UnityEngine.TextRenderingModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.TextRenderingModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>lib\UnityEngine.InputLegacyModule.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.InputLegacyModule.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>lib\UnityEngine.UI.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\Unity.InputSystem.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>lib\Unity.TextMeshPro.dll</HintPath>
+    <Reference Include="$(GameManagedDir)\UnityEngine.UI.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(GameManagedDir)\Unity.TextMeshPro.dll">
       <Private>false</Private>
     </Reference>
   </ItemGroup>

@@ -300,7 +300,7 @@ namespace NPC.Core.Agents
             if (room == null || !room.gameObject.activeInHierarchy) return;
 
             CustomRoom? customRoom = room as CustomRoom;
-            if (customRoom != null && !customRoom.EnabledStructure) return;
+            if (customRoom != null && !customRoom.Enabled) return;
 
             if (room.ContentEnabled) return;
 
@@ -681,7 +681,7 @@ namespace NPC.Core.Agents
                 float bestSqr = float.MaxValue;
                 foreach (CustomRoom room in ship.Rooms)
                 {
-                    if (room == null || !room.gameObject.activeInHierarchy || !room.EnabledStructure) continue;
+                    if (room == null || !room.gameObject.activeInHierarchy || !room.Enabled) continue;
                     if (room == tracked) return room.ContentParent;
 
                     float sqr = (room.transform.position - pos).sqrMagnitude;
@@ -795,17 +795,13 @@ namespace NPC.Core.Agents
         }
 
         /// <summary>
-        /// After the player ship was rebuilt around an NPC aboard: moves it by `worldShift`, and
-        /// forgets every world position taken in the old layout. docs/invariants.md#an-npc-rides-its-own-floor
+        /// Drops navigation state from the old ship layout. docs/invariants.md#an-npc-rides-its-own-floor
         /// </summary>
-        internal void RideShipRebuild(byte stage, Vector3 worldShift, bool floorStands, string what)
+        internal void OnShipLayoutChanged(bool floorStands)
         {
             if (IsDead) return;
 
-            // The spot it hid in belongs to a room that is being rebuilt around it.
-            brain.OnInterrupted("the ship is being rebuilt");
-
-            if (worldShift.sqrMagnitude > 0.0001f) TeleportTo(transform.position + worldShift, true);
+            brain.OnInterrupted("the ship layout changed");
 
             // A walk's goal is a world point of the old layout too, so the brain ends it rather than resumes.
             bool gotoEnded = brain.OnShipRebuilt();
@@ -820,7 +816,7 @@ namespace NPC.Core.Agents
             if (NpcLog.Level < 1) return;
 
             NpcLog.Log.LogInfo(
-                $"[ai] Ship rebuilt (stage {stage}): {what}; plan dropped, safe spot " +
+                $"[ai] Ship layout changed: plan dropped, safe spot " +
                 (safeSpot ? "set here" : "forgotten") + (gotoEnded ? ", goto ended" : ""));
         }
 
@@ -830,9 +826,11 @@ namespace NPC.Core.Agents
         /// </summary>
         public void TeleportTo(Vector3 position, bool stopFalling)
         {
-            cc.enabled = false;
+            // A room can be sold after the NPC spawns and before Start caches its controller.
+            CharacterController? controller = cc != null ? cc : GetComponent<CharacterController>();
+            if (controller != null) controller.enabled = false;
             transform.position = position;
-            cc.enabled = true;
+            if (controller != null) controller.enabled = true;
             hasBaseFloor = false;
             baseFloorMismatchTimer = 0f;
             if (!stopFalling) return;

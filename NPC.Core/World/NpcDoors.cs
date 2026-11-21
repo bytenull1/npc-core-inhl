@@ -150,18 +150,14 @@ namespace NPC.Core.World
         public static bool Optimizes(EntryDetector detector) => GameInternals.EntryDetectorAccess.GetOptimize(detector);
 
         /// <summary>
-        /// Which side of a doorway a point is on, by the test EntryDetector.TriggerCheckForEnter uses for the
-        /// player. False when the detector cannot be read. A plane: sound only for the doorway's two rooms.
+        /// Which room contains the point, or false if both or neither detector claims it.
         /// </summary>
         public static bool TryInnerSide(EntryDetector detector, Vector3 pos, out bool inner)
         {
-            inner = false;
-            Transform? rotationRef = GameInternals.EntryDetectorAccess.GetRotationReference(detector);
-            if (rotationRef == null) return false;
-
-            float z = rotationRef.InverseTransformPoint(pos).z;
-            inner = GameInternals.EntryDetectorAccess.GetReverseSide(detector) ? z < 0f : z > 0f;
-            return true;
+            RoomsOf(detector, out Room? inside, out Room? outside);
+            inner = inside != null && inside.Contains(pos);
+            bool outer = outside != null && outside.Contains(pos);
+            return inner != outer;
         }
 
         private static void RefreshDetectors(float lead = 0f)
@@ -485,29 +481,22 @@ namespace NPC.Core.World
         }
 
         /// <summary>
-        /// The middle of an airlock's chamber: its PlayerDetector volume's centre. The airlock's own
-        /// transform is not there - it can sit by a door. Its transform when the volume is unreadable.
+        /// The center of the airlock's first detection box, or the airlock itself if it has none.
         /// </summary>
         public static Vector3 ChamberCenter(Airlock airlock)
         {
-            PlayerDetector? detector = GameInternals.AirlockAccess.GetPlayerDetector(airlock);
-            Collider? volume = detector != null ? detector.GetComponent<Collider>() : null;
-            return volume != null && volume.enabled && volume.gameObject.activeInHierarchy
-                ? volume.bounds.center
-                : airlock.transform.position;
+            InstantItemDetector? detector = GameInternals.AirlockAccess.GetObjectDetector(airlock);
+            List<DetectionBox>? boxes = GameInternals.InstantDetectorAccess.GetBoxes(detector);
+            if (detector == null || boxes == null || boxes.Count == 0) return airlock.transform.position;
+
+            Transform t = detector.transform;
+            return t.position + t.TransformDirection(boxes[0].centerOffset);
         }
 
         private static bool InChamber(Airlock airlock, Vector3 point)
         {
-            PlayerDetector? detector = GameInternals.AirlockAccess.GetPlayerDetector(airlock);
-            Collider? volume = detector != null ? detector.GetComponent<Collider>() : null;
-            if (volume != null)
-            {
-                // A switched-off collider has no answer: an unloaded airlock holds nobody.
-                if (!volume.enabled || !volume.gameObject.activeInHierarchy) return false;
-
-                return (volume.ClosestPoint(point) - point).sqrMagnitude < 0.0025f;
-            }
+            InstantItemDetector? detector = GameInternals.AirlockAccess.GetObjectDetector(airlock);
+            if (detector != null) return detector.gameObject.activeInHierarchy && detector.Contains(point);
 
             if (!_chamberVolumeMissingLogged)
             {

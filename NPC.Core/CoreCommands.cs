@@ -130,7 +130,7 @@ namespace NPC.Core
                     NpcConsole.Print("Usage: npc_node remove <index>");
                     return;
                 }
-                NpcConsole.Print(NavGraph.RemoveNode(idx) ? "Node #" + idx + " removed" : "Invalid index");
+                NpcConsole.Print(NavGraph.RemoveNode(idx) ? "Node #" + idx + " removed" : "Invalid or read-only node");
             }
             else if (sub == "link")
             {
@@ -142,6 +142,11 @@ namespace NPC.Core
                 if (aIdx < 0 || aIdx >= NavGraph.NodeCount || bIdx < 0 || bIdx >= NavGraph.NodeCount || aIdx == bIdx)
                 {
                     NpcConsole.Print("Invalid index");
+                    return;
+                }
+                if (NavGraph.GetNodeOwner(aIdx) == NavGraph.ShipOwner || NavGraph.GetNodeOwner(bIdx) == NavGraph.ShipOwner)
+                {
+                    NpcConsole.Print("Legacy ship nodes are read-only on editor-built ships");
                     return;
                 }
                 NpcConsole.Print(NavGraph.ToggleLink(aIdx, bIdx)

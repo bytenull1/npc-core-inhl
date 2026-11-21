@@ -120,11 +120,10 @@ namespace NPC.Core.World
         internal static bool WorldMoving()
         {
             GameManager gm = GameManager.Instance;
-            EngineController? engines = gm != null && gm.PlayerShip != null ? gm.PlayerShip.EngineController : null;
-            if (engines == null || engines.Engine == null) return false;
+            if (gm == null || gm.PlayerShip == null) return false;
 
-            // engines is only set when gm is.
-            return !gm!.IsStaticWorldPosition || !gm.IsStaticWorldRotation;
+            ShipMovementManager movement = gm.PlayerShip.ShipMovementManager;
+            return !gm.IsStaticWorld || (movement != null && movement.TotalCurrentSteer != 0f);
         }
     }
 }

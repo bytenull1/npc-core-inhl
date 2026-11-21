@@ -1,10 +1,10 @@
 # NPC.Core
 
-A shared library for NPC mods of *Isolated Inhale* (BepInEx 5). The game has no navmesh and no NPC
+A shared library for NPC mods of *Isolated Inhale* 0.9.0 (Mono, BepInEx 5). The game has no navmesh and no NPC
 navigation; NPC.Core provides it, and keeps several NPC mods from getting in each other's way.
 
-- **Navigation:** a hand-placed node graph for the ship and every station, shipped ready-made, with A\*
-  that handles stairs, decks, doors it cannot open, docking and the ship's upgrades.
+- **Navigation:** a hand-placed station graph, shipped ready-made, with A* for stairs, decks and
+  doors. Editor-built ships use local movement.
 - **Probes:** floor heights, walkability and line of sight that understand doorways and airlocks.
 - **A walking agent:** put it on a body your mod built and it follows routes, steers round obstacles,
   opens and closes doors, rides stations, stays out of space, breathes and can die; your mod decides
@@ -38,7 +38,7 @@ Coming from YourBuddy 1.0.x: your own nav graph and editor keys are carried over
 | Setting | Section | Default | Description |
 |---|---|---|---|
 | `DebugLevel` | Debug | `1` | Log verbosity of every NPC mod: `0` warnings only, `1` normal, `2` path planning and gate audits, `3` per-frame obstacle reports. Also `debug_level`. |
-| `BundledGraph` | Navigation | `true` | Use the ready-made nav graph for any ship or station you have not edited yourself. |
+| `BundledGraph` | Navigation | `true` | Use the ready-made nav graph for each station you have not edited yourself. |
 | `EditorToggleKey` … `EditorSaveKey` | NodeEditor | F8, Insert, Delete, L, K, U, T, F6 | The node editor's keys. |
 
 ## Console commands

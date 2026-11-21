@@ -161,7 +161,7 @@ namespace NPC.Core.Navigation
             /// Bundled file only: bumped by hand when the shipped graph changes, which
             /// is what makes an update land without touching the user's own file.
             /// </summary>
-            public readonly int BundleVersion = 0;
+            public int BundleVersion = 0;
             /// <summary>
             /// User file only: owners the player has taken over. Kept explicitly so an
             /// owner can be forked and then emptied - "I want no nodes here" is not the
@@ -656,6 +656,11 @@ namespace NPC.Core.Navigation
         {
             EnsureLoaded();
             DetectOwner(worldPos, out string owner, out Transform? ownerT);
+            if (owner == ShipOwner)
+            {
+                NpcLog.Log.LogWarning("[nav] Ship node editing is disabled for editor-built ships.");
+                return;
+            }
             Vector3 anchor = FloorUnderHovered(worldPos, ownerT);
             Vector3 local = ownerT != null ? ownerT.InverseTransformPoint(anchor) : anchor;
 
@@ -673,7 +678,6 @@ namespace NPC.Core.Navigation
             int id = _nextId++;
             UsedIds.Add(id);
             Node added = new() { Id = id, Owner = owner, LocalPos = local, Type = NodeType.Ground };
-            if (owner == ShipOwner && !TryAnchorShipNode(added, worldPos)) added.Anchor = HullAnchor;
 
             Nodes.Add(added);
             _dirty = true;
@@ -686,7 +690,7 @@ namespace NPC.Core.Navigation
         internal static bool RemoveNode(int index)
         {
             EnsureLoaded();
-            if (!ValidIndex(index)) return false;
+            if (!ValidIndex(index) || Nodes[index].Owner == ShipOwner) return false;
 
             ForkOwnerOf(index);
             int removedId = Nodes[index].Id;
@@ -998,7 +1002,8 @@ namespace NPC.Core.Navigation
         internal static bool ToggleLink(int indexA, int indexB)
         {
             EnsureLoaded();
-            if (!ValidIndex(indexA) || !ValidIndex(indexB) || indexA == indexB) return false;
+            if (!ValidIndex(indexA) || !ValidIndex(indexB) || indexA == indexB ||
+                Nodes[indexA].Owner == ShipOwner || Nodes[indexB].Owner == ShipOwner) return false;
 
             ForkOwnerOf(indexA);
             ForkOwnerOf(indexB);
@@ -1044,7 +1049,7 @@ namespace NPC.Core.Navigation
         internal static int ClearLinks(int index)
         {
             EnsureLoaded();
-            if (!ValidIndex(index)) return 0;
+            if (!ValidIndex(index) || Nodes[index].Owner == ShipOwner) return 0;
 
             int id = Nodes[index].Id;
             int removed = ManualLinks.RemoveAll(l => l.A == id || l.B == id);
@@ -1350,19 +1355,13 @@ namespace NPC.Core.Navigation
             }
 
             /// <summary>
-            /// Walkable now: the owner is reachable and, on the ship, the node has a floor it rides
-            /// and that room is built. docs/invariants.md#a-ship-node-rides-its-room
+            /// Walkable now: the owner is reachable and the node does not belong to the legacy ship.
+            /// docs/invariants.md#a-ship-node-rides-its-room
             /// </summary>
             public bool IsLive(Node n)
             {
-                if (!IsActive(n.Owner)) return false;
-
-                if (n.Owner != ShipOwner || n.Anchor == HullAnchor) return true;
-
-                if (n.Anchor == null) return false;
-
-                CustomRoom? room = RoomOf(n);
-                return room == null || room.EnabledStructure;
+                // Legacy ship nodes and links describe the 0.8.9 upgrade layouts.
+                return n.Owner != ShipOwner && IsActive(n.Owner);
             }
 
             /// <summary>
@@ -1399,9 +1398,9 @@ namespace NPC.Core.Navigation
         internal const string HullAnchor = "hull";
         // Room moves are whole cells (3.75 m); anything under this is float noise.
         private const float LinkShiftTolerance = 0.1f;
-        private const float AnchorRetryInterval = 2f;
-        private static float _anchorRetryAt;
         private static int _lastShipLayoutSig;
+        private static int _shipLayoutSig;
+        private static int _shipLayoutFrame = -1;
         private static bool _warnedUnknownRoom;
 
         private static readonly Dictionary<string, CustomRoom> RoomsByName = new(16);
@@ -1414,8 +1413,6 @@ namespace NPC.Core.Navigation
                 : null;
             if (shipRooms == null) return null;
 
-            // A stage only moves and toggles this fixed array, so the map is keyed on the
-            // array itself: docs/invariants.md#unity-name-reads-allocate
             if (!ReferenceEquals(shipRooms, _roomsByNameOf))
             {
                 RoomsByName.Clear();
@@ -1437,100 +1434,54 @@ namespace NPC.Core.Navigation
                 _warnedUnknownRoom = true;
                 NpcLog.Log.LogWarning(
                     "[nav] The player ship has no room '" + name + "' - its nodes stay where they were placed " +
-                    "and no longer follow ship upgrades.");
+                    "in the legacy graph.");
             }
             return null;
         }
 
-        /// <summary>
-        /// Anchors a ship node to the room whose floor is under `worldPos`, or to the hull when the
-        /// floor is part of no room. False when there is no floor there at all.
-        /// </summary>
-        private static bool TryAnchorShipNode(Node n, Vector3 worldPos)
-        {
-            SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
-            if (ship == null || !NavProbe.TryFloorCollider(worldPos, out Collider? floor) || floor == null) return false;
-
-            CustomRoom? room = floor.GetComponentInParent<CustomRoom>();
-            if (room != null && Array.IndexOf(ship.Rooms, room) >= 0)
-            {
-                n.Anchor = room.gameObject.name;
-                n.AnchorAt = ship.transform.InverseTransformPoint(room.transform.position);
-            }
-            else
-            {
-                n.Anchor = HullAnchor;
-                n.AnchorAt = Vector3.zero;
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Ship nodes from a graph written before anchoring are anchored by the floor under them in
-        /// the layout the ship has now. One with no floor waits, dormant, for one to be built.
-        /// </summary>
-        private static void AnchorPendingShipNodes()
-        {
-            if (Time.time < _anchorRetryAt) return;
-
-            _anchorRetryAt = Time.time + AnchorRetryInterval;
-            Transform? shipT = OwnerTransform(ShipOwner);
-            if (shipT == null) return;
-
-            int anchored = 0;
-            List<int>? waiting = null;
-            foreach (Node n in Nodes)
-            {
-                if (n.Owner != ShipOwner || n.Anchor != null) continue;
-
-                if (TryAnchorShipNode(n, shipT.TransformPoint(n.LocalPos)))
-                {
-                    anchored++;
-                    if (!n.Bundled) _dirty = true;
-                }
-                else
-                {
-                    (waiting ??= []).Add(n.Id);
-                }
-            }
-            if (anchored == 0) return;
-
-            _edgesDirty = true;
-            NpcLog.Log.LogInfo(
-                "[nav] Anchored " + anchored + " ship node(s) to the rooms under them at ship stage " +
-                ShipStage() + (waiting == null ? "" : "; no floor yet under #" + string.Join(", #", waiting)));
-        }
-
-        private static string ShipStage()
-        {
-            SpaceShip? ship = GameManager.Instance != null ? GameManager.Instance.PlayerShip : null;
-            return ship != null && ship.StorymodeShipBuilder != null
-                ? ship.StorymodeShipBuilder.CurrentLevel.ToString()
-                : "?";
-        }
-
-        /// <summary>
-        /// Which rooms are built and where they stand: an upgrade changes both, and with them
-        /// which ship nodes are live and where they are.
-        /// </summary>
         internal static int ShipLayoutSignature()
         {
-            CustomRoom[]? shipRooms = GameManager.Instance != null && GameManager.Instance.PlayerShip != null
-                ? GameManager.Instance.PlayerShip.Rooms
-                : null;
-            if (shipRooms == null) return 0;
+            if (_shipLayoutFrame == Time.frameCount) return _shipLayoutSig;
 
-            int sig = 17;
-            foreach (CustomRoom room in shipRooms)
+            _shipLayoutSig = ReadShipLayoutSignature();
+            _shipLayoutFrame = Time.frameCount;
+            return _shipLayoutSig;
+        }
+
+        private static int ReadShipLayoutSignature()
+        {
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.PlayerShip == null || gm.PlayerShip.RoomsParent == null) return 0;
+
+            Transform rooms = gm.PlayerShip.RoomsParent;
+            int signature = 17;
+            for (int i = 0; i < rooms.childCount; i++)
             {
-                if (room == null) continue;
+                Transform child = rooms.GetChild(i);
+                if (!child.TryGetComponent(out CustomRoom room) || !room.Enabled) continue;
 
-                Vector3 p = room.transform.localPosition;
-                sig = sig * 31 + (room.EnabledStructure ? 1 : 2);
-                sig = sig * 31 + Mathf.RoundToInt(p.x * 20f);
-                sig = sig * 31 + Mathf.RoundToInt(p.z * 20f);
+                signature = signature * 31 + room.GetInstanceID();
+                signature = signature * 31 + child.localPosition.GetHashCode();
+                signature = signature * 31 + child.localRotation.GetHashCode();
+                signature = signature * 31 + child.localScale.GetHashCode();
+                var parts = room.RoomParts;
+                for (int partIndex = 0; partIndex < parts.Count; partIndex++)
+                {
+                    RoomPart part = parts[partIndex];
+                    if (part == null) continue;
+
+                    var walls = part.Walls;
+                    for (int wallIndex = 0; wallIndex < walls.Count; wallIndex++)
+                    {
+                        RoomWall wall = walls[wallIndex];
+                        if (wall == null || wall.Data == null) continue;
+
+                        signature = signature * 31 + wall.CurrentID;
+                        signature = signature * 31 + (wall.Data.exposed ? 1 : 0);
+                    }
+                }
             }
-            return sig;
+            return signature;
         }
 
         /// <summary>
@@ -1672,7 +1623,6 @@ namespace NPC.Core.Navigation
         private static void EnsureEdgesFresh()
         {
             EnsureLoaded();
-            AnchorPendingShipNodes();
             string sig = DockSignature();
             int layoutSig = ShipLayoutSignature();
             if (_edgesDirty || sig != _lastDockSig || layoutSig != _lastShipLayoutSig)
@@ -1690,19 +1640,7 @@ namespace NPC.Core.Navigation
 
         private static void LogShipLayoutChange()
         {
-            OwnerSnapshot owners = new();
-            int live = 0;
-            int dormant = 0;
-            foreach (Node n in Nodes)
-            {
-                if (n.Owner != ShipOwner) continue;
-
-                if (owners.IsLive(n)) live++;
-                else dormant++;
-            }
-            NpcLog.Log.LogInfo(
-                "[nav] Ship rebuilt (stage " + ShipStage() + "): " + live + " ship node(s) live, " +
-                dormant + " dormant in rooms not built; edges rebuilt");
+            NpcLog.Log.LogInfo("[nav] Ship layout changed; edges rebuilt.");
         }
 
         private static void RebuildEdges(string dockSig)

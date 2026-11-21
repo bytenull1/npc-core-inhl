@@ -111,19 +111,10 @@ doorway is a blocker like any other: A's close waits for it
 
 ## 5. Closes away from the player
 
-`EntryDetector` re-files the player whenever a door it knows closes, from anywhere
-([game-model.md](game-model.md#entrydetector-re-files-the-player-when-a-door-closes)). So an NPC calls
-`NpcDoors.NoteClosedBy(gate, itself)` right after `Gate.Close`, and the `Doors` patch group keeps the
-close from moving the player ([npc-closes-must-not-move-the-player](invariants.md#npc-closes-must-not-move-the-player)):
-
-1. The `DoorCheckForEnter` prefix: for a gate an NPC closed within `NpcCloseWindow`, with the player
-   beyond `PlayerAtDoorwayRadius`, hide the detector's remembered player. Item re-parenting still runs.
-2. The postfix puts the player back. Away from the player the game switched no room off either, so the
-   closer's `INpcDoorUser.OnDoorClosedAway(detector)` runs: the NPC that shut the door puts back what
-   it loaded. Every other NPC keeps its own room through `INpc.TracksRoom`
-   ([rooms-stay-loaded-for-every-npc](invariants.md#rooms-stay-loaded-for-every-npc)).
-
-At the doorway the game does its normal thing for the player, and NPC.Core stays out of it.
+The door's `EntryDetector.ClaimContents` can assign the player to either room after a close.
+NPC.Core blocks that assignment when the recording NPC closed the door beyond
+`PlayerAtDoorwayRadius`. When the claim finishes, the closer releases rooms it no longer needs.
+See [npc-closes-must-not-move-the-player](invariants.md#npc-closes-must-not-move-the-player).
 
 ---
 

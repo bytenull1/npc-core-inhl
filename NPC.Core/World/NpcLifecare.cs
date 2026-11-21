@@ -108,9 +108,10 @@ namespace NPC.Core.World
         private static void TryHook()
         {
             GameManager gm = GameManager.Instance;
-            if (gm == null || gm.PlayerShip == null || gm.PlayerShip.LifecareController == null) return;
+            if (gm == null || gm.PlayerShip == null ||
+                !gm.PlayerShip.TryGetComponentInRooms(out LifecareController controller) || controller == null) return;
 
-            LifecareDisplay display = gm.PlayerShip.LifecareController.Display;
+            LifecareDisplay display = controller.Display;
             if (display == null) return;
 
             Image? breathless = GameInternals.LifecareDisplayAccess.GetBreathlessIcon(display);
